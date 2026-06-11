@@ -44,7 +44,10 @@ const OrderDetails = () => {
   }, [dispatch, orderId]);
 
   const selectedOrder = isCurrentOrder ? order : null;
-  const items = selectedOrder?.orderItems || [];
+  const items = useMemo(
+    () => selectedOrder?.orderItems || [],
+    [selectedOrder?.orderItems]
+  );
   const itemCount = useMemo(
     () => items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0),
     [items]

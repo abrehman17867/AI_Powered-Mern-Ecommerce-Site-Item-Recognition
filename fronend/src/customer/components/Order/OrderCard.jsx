@@ -21,8 +21,12 @@ export default function OrderCard({ order }) {
   const navigate = useNavigate();
   const items = order?.orderItems || [];
   const itemCount = useMemo(
-    () => items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0),
-    [items]
+    () =>
+      (order?.orderItems || []).reduce(
+        (sum, item) => sum + (Number(item.quantity) || 1),
+        0
+      ),
+    [order?.orderItems]
   );
   const statusMeta = getOrderStatusMeta(order?.orderStatus);
   const paymentPending = order?.paymentDetails?.paymentSatus === "PENDING";

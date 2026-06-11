@@ -146,11 +146,9 @@ export default function ProductToolbar({
               role="listbox"
             >
               {suggestions.map((item) => (
-                <li key={item._id}>
+                <li key={item._id} role="option" aria-selected={false}>
                   <button
                     type="button"
-                    role="option"
-                    aria-selected={false}
                     className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-surface-muted"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
@@ -194,11 +192,9 @@ export default function ProductToolbar({
                 role="listbox"
               >
                 {SORT_OPTIONS.map((opt) => (
-                  <li key={opt.id}>
+                  <li key={opt.id} role="option" aria-selected={sort === opt.query}>
                     <button
                       type="button"
-                      role="option"
-                      aria-selected={sort === opt.query}
                       className={classNames(
                         "w-full px-3 py-2 text-left text-sm hover:bg-surface-muted",
                         sort === opt.query && "bg-brand-50 font-semibold text-brand-700"

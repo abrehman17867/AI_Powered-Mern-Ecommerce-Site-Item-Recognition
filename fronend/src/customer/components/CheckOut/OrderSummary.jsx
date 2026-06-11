@@ -45,8 +45,12 @@ export const OrderSummary = () => {
   const order = orderSlice.order;
   const items = order?.orderItems || [];
   const itemCount = useMemo(
-    () => items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0),
-    [items]
+    () =>
+      (order?.orderItems || []).reduce(
+        (sum, item) => sum + (Number(item.quantity) || 1),
+        0
+      ),
+    [order?.orderItems]
   );
 
   useEffect(() => {
