@@ -1,4 +1,0 @@
-# Python 3.10–3.12 recommended (3.14 may not have torch wheels yet)
-torch>=2.0.0
-torchvision>=0.15.0
-Pillow>=10.0.0
