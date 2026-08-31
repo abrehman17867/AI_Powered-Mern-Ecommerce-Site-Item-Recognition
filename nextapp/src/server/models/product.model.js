@@ -71,5 +71,8 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Product = mongoose.model("products", productSchema);
+// Reuse an already-registered model: Next.js re-evaluates modules on
+// hot reload and across route bundles, and mongoose.model() throws
+// OverwriteModelError if the same name is registered twice.
+const Product = mongoose.models.products || mongoose.model("products", productSchema);
 module.exports = Product;

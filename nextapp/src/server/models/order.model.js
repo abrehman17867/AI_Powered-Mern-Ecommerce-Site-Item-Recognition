@@ -64,5 +64,8 @@ const orderSchema = new Schema({
   },
 });
 
-const Order = mongoose.model("orders", orderSchema);
+// Reuse an already-registered model: Next.js re-evaluates modules on
+// hot reload and across route bundles, and mongoose.model() throws
+// OverwriteModelError if the same name is registered twice.
+const Order = mongoose.models.orders || mongoose.model("orders", orderSchema);
 module.exports = Order;

@@ -1,4 +1,3 @@
-const Product = require("../models/product.model");
 const productService = require("../services/product.service");
 const { predictImageLabel } = require("../services/imagePredict.service");
 
@@ -88,17 +87,17 @@ const getProductByCategory = async (req, res) => {
 
 const searchProducts = async (req, res) => {
   try {
-      const { query } = req.query;
-      
+      // The client sends ?q=; ?query= is kept for backwards compatibility.
+      // Previously only `query` was read, so the term was always undefined and
+      // new RegExp(undefined) matched every product in the catalog.
+      const term = String(req.query.q ?? req.query.query ?? "").trim();
+
+      if (!term) {
+          return res.status(200).json([]);
+      }
+
       // Basic search, this can be improved with more advanced search algorithms
-      const products = await Product.find({
-          $or: [
-              { brand: new RegExp(query, 'i') },
-              { title: new RegExp(query, 'i') },
-              { description: new RegExp(query, 'i') },
-              
-          ]
-      });
+      const products = await productService.searchProducts(term);
 
       res.status(200).json(products);
   } catch (error) {

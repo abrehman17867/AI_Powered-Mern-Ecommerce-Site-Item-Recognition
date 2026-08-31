@@ -60,5 +60,8 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-const User = mongoose.model("users", userSchema);
+// Reuse an already-registered model: Next.js re-evaluates modules on
+// hot reload and across route bundles, and mongoose.model() throws
+// OverwriteModelError if the same name is registered twice.
+const User = mongoose.models.users || mongoose.model("users", userSchema);
 module.exports = User;

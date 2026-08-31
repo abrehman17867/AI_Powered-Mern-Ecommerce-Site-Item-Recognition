@@ -35,5 +35,8 @@ const cartItemSchema = new mongoose.Schema({
   },
 });
 
-const CartItem = mongoose.model("cartItems", cartItemSchema);
+// Reuse an already-registered model: Next.js re-evaluates modules on
+// hot reload and across route bundles, and mongoose.model() throws
+// OverwriteModelError if the same name is registered twice.
+const CartItem = mongoose.models.cartItems || mongoose.model("cartItems", cartItemSchema);
 module.exports = CartItem;

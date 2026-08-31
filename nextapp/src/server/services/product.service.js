@@ -7,6 +7,46 @@ function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function isDataUri(value) {
+  return typeof value === "string" && value.startsWith("data:");
+}
+
+/**
+ * Replaces embedded base64 images with a reference to /api/products/:id/image.
+ *
+ * Images live in MongoDB as data URIs, which would otherwise add ~125KB to
+ * every product in every list response. Serving them from their own endpoint
+ * keeps list payloads small and lets the browser cache images separately.
+ * The frontend renders `imageUrl` straight into <img src>, so a URL works
+ * exactly as the data URI did.
+ */
+function withImageRefs(doc, { imagesOmitted = false } = {}) {
+  if (!doc) return doc;
+  const json = typeof doc.toJSON === "function" ? doc.toJSON() : doc;
+  const id = json?._id;
+  if (!id) return json;
+
+  if (imagesOmitted) {
+    // List queries skip the image fields entirely (see IMAGE_FIELDS), so point
+    // at the endpoint unconditionally. It serves embedded images, redirects for
+    // documents holding an http(s) URL, and 404s when there is no image.
+    json.imageUrl = `/api/products/${id}/image`;
+  } else if (isDataUri(json.imageUrl)) {
+    json.imageUrl = `/api/products/${id}/image`;
+  }
+
+  if (Array.isArray(json.images)) {
+    json.images = json.images.map((img, index) =>
+      isDataUri(img) ? `/api/products/${id}/image?i=${index}` : img
+    );
+  }
+  return json;
+}
+
+// Excluded from list queries: each embedded image is ~125KB, so fetching a
+// page of 12 pulled ~1.5MB out of Atlas just to discard it before responding.
+const IMAGE_FIELDS = "-imageUrl -images";
+
 function normalizeSizes(sizesPayload) {
   let parsed = sizesPayload;
   if (typeof parsed === "string") {
@@ -200,7 +240,7 @@ async function findProductById(id) {
     throw new Error(`Product not found with ID: ${trimmedId}`);
   }
 
-  return product;
+  return withImageRefs(product);
 }
 
 async function getAllProducts(reqQuery) {
@@ -320,11 +360,15 @@ async function getAllProducts(reqQuery) {
 
   const totalProducts = await Product.countDocuments(query.getFilter());
   const skip = (pageNumber - 1) * pageSize;
-  const products = await query.skip(skip).limit(pageSize).exec();
+  const products = await query
+    .select(IMAGE_FIELDS)
+    .skip(skip)
+    .limit(pageSize)
+    .exec();
   const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize) || 1);
 
   return {
-    content: products,
+    content: products.map((p) => withImageRefs(p, { imagesOmitted: true })),
     curentPage: pageNumber,
     totalPages,
     totalProducts,
@@ -367,14 +411,14 @@ async function getProductsByCategory(categoryName, req) {
   if (!category) {
     throw new Error(`Category '${categoryName}' not found`);
   }
-  const products = await Product.find({ category: category._id }).populate(
-    "category"
-  );
+  const products = await Product.find({ category: category._id })
+    .populate("category")
+    .select(IMAGE_FIELDS);
 
-  // Keep the stored imageUrl (base64 data URI) when present; only synthesise a
-  // static /uploads path for legacy documents that have just a photo filename.
+  // Embedded images become /api/products/:id/image references; legacy documents
+  // that only have a photo filename fall back to the static /uploads path.
   const productsWithImageUrl = products.map((product) => {
-    const json = product.toJSON();
+    const json = withImageRefs(product, { imagesOmitted: true });
     return {
       ...json,
       imageUrl:
@@ -412,17 +456,29 @@ async function getProductsByCategory(categoryName, req) {
 // Function to handle image prediction
 
 
+const SEARCH_LIMIT = 48;
+
 const searchProducts = async (query) => {
   try {
+      const term = String(query ?? "").trim();
+      if (!term) {
+          return [];
+      }
+
+      const pattern = new RegExp(escapeRegExp(term), 'i');
+
       const products = await Product.find({
           $or: [
-            { brand: new RegExp(query, 'i') },
-            { title: new RegExp(query, 'i') },
-            { description: new RegExp(query, 'i') },
-           
+            { brand: pattern },
+            { title: pattern },
+            { description: pattern },
+
           ]
       })
-      return products;
+        .select(IMAGE_FIELDS)
+        .limit(SEARCH_LIMIT)
+        .lean();
+      return products.map((p) => withImageRefs(p, { imagesOmitted: true }));
   } catch (error) {
       throw new Error(error.message);
   }
@@ -460,6 +516,7 @@ async function searchProductsByImage(imagePath, req) {
       orClause.length > 0 ? { $or: orClause } : {}
     )
       .populate("category")
+      .select(IMAGE_FIELDS)
       .limit(48)
       .lean();
 
@@ -471,13 +528,14 @@ async function searchProductsByImage(imagePath, req) {
         ],
       })
         .populate("category")
+        .select(IMAGE_FIELDS)
         .limit(24)
         .lean();
     }
 
     return {
       predictedLabel,
-      products,
+      products: products.map((p) => withImageRefs(p, { imagesOmitted: true })),
       searchKeywords: keywords,
       matchMethod: method,
     };

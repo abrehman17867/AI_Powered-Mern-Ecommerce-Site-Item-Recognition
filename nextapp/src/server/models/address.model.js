@@ -35,5 +35,8 @@ const AddressSchema = new mongoose.Schema({
   },
 });
 
-const Address = mongoose.model("addresses", AddressSchema);
+// Reuse an already-registered model: Next.js re-evaluates modules on
+// hot reload and across route bundles, and mongoose.model() throws
+// OverwriteModelError if the same name is registered twice.
+const Address = mongoose.models.addresses || mongoose.model("addresses", AddressSchema);
 module.exports = Address;

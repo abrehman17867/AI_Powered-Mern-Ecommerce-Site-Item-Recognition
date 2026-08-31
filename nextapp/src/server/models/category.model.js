@@ -16,5 +16,8 @@ const categorySchema = new mongoose.Schema({
   },
 });
 
-const Category = mongoose.model("categories", categorySchema);
+// Reuse an already-registered model: Next.js re-evaluates modules on
+// hot reload and across route bundles, and mongoose.model() throws
+// OverwriteModelError if the same name is registered twice.
+const Category = mongoose.models.categories || mongoose.model("categories", categorySchema);
 module.exports = Category;
