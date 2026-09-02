@@ -1,11 +1,24 @@
 /**
- * Full catalog seed: builds the category tree and creates a product for every
- * real image file found in src/uploads and uploadsImage, embedding each image
- * as a base64 data URI directly on the product document (imageUrl field) so
- * everything lives in MongoDB — no dependency on local disk or external hosts.
+ * Full catalog seed: builds the category tree and creates one product per
+ * distinct image, embedding the image as a base64 data URI on the product
+ * document (imageUrl) so everything lives in MongoDB — no dependency on local
+ * disk or external hosts.
+ *
+ * Point SEED_IMAGE_DIRS at one or more folders (comma-separated). Each image
+ * must sit in a subfolder named after its leaf category:
+ *
+ *   seed-images/Sneakers/white-low-top.jpg
+ *   seed-images/Boots/chelsea-brown.jpg
+ *   seed-images/Sunglasses/aviator.jpg
+ *
+ * Images placed loose in the top level, or in a folder matching no category,
+ * are skipped with a warning rather than filed somewhere arbitrary. Duplicates
+ * are detected by file content, so the same photo under two names yields one
+ * product instead of several sharing a picture.
  */
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 require("dotenv").config({ path: require("path").join(__dirname, "..", ".env.local") });
 const { connectDb } = require("../src/lib/db");
 const Category = require("../src/server/models/category.model");
@@ -112,21 +125,40 @@ async function seedCuratedProducts(categoryMap) {
   return upserted;
 }
 
+/**
+ * Collects images from a directory. A file sitting directly in the directory
+ * has no category information; one inside a subdirectory takes that
+ * subdirectory's name as its category, e.g. seed-images/Sneakers/a.jpg.
+ */
 function collectImageFiles(dir) {
   if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => MIME_BY_EXT[path.extname(f).toLowerCase()])
-    .map((f) => path.join(dir, f));
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      for (const f of fs.readdirSync(full)) {
+        if (MIME_BY_EXT[path.extname(f).toLowerCase()]) {
+          out.push({ file: path.join(full, f), categoryName: entry.name });
+        }
+      }
+    } else if (MIME_BY_EXT[path.extname(entry.name).toLowerCase()]) {
+      out.push({ file: full, categoryName: null });
+    }
+  }
+  return out;
 }
 
-// Dedup files that share the same base name before the "-<timestamp>.ext" suffix
-// (repeated test uploads of the same source photo).
-function dedupByBaseName(files) {
+/**
+ * Dedups on file CONTENT, not name. The previous version compared base names
+ * with the "-<timestamp>.ext" upload suffix stripped, which missed the same
+ * photo saved under different names — that is how a single shoe image ended up
+ * attached to 29 products.
+ */
+function dedupByContent(entries) {
   const seen = new Map();
-  for (const f of files) {
-    const base = path.basename(f).replace(/-\d{13}(\.[a-zA-Z0-9]+)$/, "$1");
-    if (!seen.has(base)) seen.set(base, f);
+  for (const entry of entries) {
+    const hash = crypto.createHash("sha1").update(fs.readFileSync(entry.file)).digest("hex");
+    if (!seen.has(hash)) seen.set(hash, entry);
   }
   return [...seen.values()];
 }
@@ -149,7 +181,7 @@ function pick(arr, rnd) {
 }
 
 async function seedGeneratedProducts(leaves) {
-  const imageFiles = dedupByBaseName([
+  const imageFiles = dedupByContent([
     // The original backend/ folder (which held the uploaded product photos) was
     // removed when this app moved to the repo root. The seeded catalog already
     // lives in MongoDB with its images embedded, so this is only needed to seed
@@ -159,11 +191,22 @@ async function seedGeneratedProducts(leaves) {
     ...SEED_IMAGE_DIRS.flatMap((dir) => collectImageFiles(path.resolve(dir))),
   ]);
 
+  const byName = new Map(leaves.map((l) => [String(l.l3).toLowerCase(), l]));
+  const uncategorised = [];
+
   let upserted = 0;
   let index = 0;
-  for (const filePath of imageFiles) {
-    const leaf = leaves[index % leaves.length];
+  for (const { file: filePath, categoryName } of imageFiles) {
+    // Categories come from the folder the image sits in. The previous version
+    // used leaves[index % leaves.length], assigning each photo a category by
+    // position with no relation to what it showed — which is how a belt ended
+    // up titled "Everyday Boots 002".
+    const leaf = categoryName ? byName.get(String(categoryName).toLowerCase()) : null;
     index += 1;
+    if (!leaf) {
+      uncategorised.push({ filePath, categoryName });
+      continue;
+    }
 
     const ext = path.extname(filePath).toLowerCase();
     const mime = MIME_BY_EXT[ext] || "image/jpeg";
@@ -204,7 +247,17 @@ async function seedGeneratedProducts(leaves) {
     );
     upserted += 1;
   }
-  return { upserted, imageCount: imageFiles.length };
+  if (uncategorised.length > 0) {
+    console.warn(
+      `Skipped ${uncategorised.length} image(s) with no matching category. Put each` +
+        ` image in a subfolder named after its leaf category, e.g.` +
+        ` seed-images/Sneakers/shoe.jpg. Known categories: ${leaves.map((l) => l.l3).join(", ")}.`
+    );
+    for (const u of uncategorised.slice(0, 10)) {
+      console.warn(`  ${path.basename(u.filePath)} (folder: ${u.categoryName || "none"})`);
+    }
+  }
+  return { upserted, imageCount: imageFiles.length, skipped: uncategorised.length };
 }
 
 async function run() {
