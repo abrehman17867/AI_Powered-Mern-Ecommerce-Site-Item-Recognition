@@ -43,9 +43,17 @@ function SelectOptions({ options, compact }) {
   ));
 }
 
-function SelectPanel({ open, compact, menuStyle, options }) {
+// Rendered as the direct child of <Transition as={Fragment}>, which hands its
+// ref to whatever it wraps. Without forwardRef that ref never reaches a DOM
+// node and Headless UI throws "Did you forget to passthrough the `ref` to
+// the actual DOM node?" as soon as the panel opens.
+const SelectPanel = React.forwardRef(function SelectPanel(
+  { open, compact, menuStyle, options },
+  ref
+) {
   const panel = (
     <Listbox.Options
+      ref={ref}
       className={classNames(
         "max-h-60 overflow-auto rounded-xl border border-line bg-surface py-1.5 shadow-lg ring-1 ring-black/5 focus:outline-none",
         compact ? "min-w-[9.5rem]" : "absolute z-50 mt-1.5 w-full"
@@ -61,7 +69,7 @@ function SelectPanel({ open, compact, menuStyle, options }) {
   }
 
   return panel;
-}
+});
 
 function SelectControl({
   open,
