@@ -247,6 +247,7 @@ async function getAllProducts(reqQuery) {
   let {
     category,
     color,
+    colors,
     sizes,
     size,
     brand,
@@ -260,6 +261,8 @@ async function getAllProducts(reqQuery) {
   } = reqQuery;
 
   const sizesParam = sizes || size;
+  // The catalog toolbar sends "colors"; older callers send "color".
+  const colorParam = colors || color;
   pageNumber = Math.max(1, parseInt(pageNumber, 10) || 1);
   pageSize = Math.min(48, Math.max(1, parseInt(pageSize, 10) || 12));
 
@@ -283,9 +286,9 @@ async function getAllProducts(reqQuery) {
     }
   }
   // console.log("product color issss :",color)
-  if (color) {
+  if (colorParam) {
     const colorSet = new Set(
-      color.split(",").map((color) => color.trim().toLowerCase())
+      String(colorParam).split(",").map((c) => c.trim().toLowerCase()).filter(Boolean)
     );
     const colorRegex =
       colorSet.size > 0 ? new RegExp([...colorSet].join("|"), "i") : null;
@@ -319,7 +322,8 @@ async function getAllProducts(reqQuery) {
 
   //console.log("CHECKING", minDiscount)
   if (minDiscount) {
-    query = query.where("discountedPersent").gt(minDiscount);
+    // The UI offers "20%+ off", so the bound is inclusive.
+    query = query.where("discountedPersent").gte(Number(minDiscount));
   }
 
   if (stock) {
@@ -499,26 +503,46 @@ async function searchProductsByImage(imagePath, req) {
       cats.forEach((c) => categoryIds.add(String(c._id)));
     }
 
+    // Every seeded description reads "... shoes from the Men/Shoes collection",
+    // so ORing over description matched ~44 of 77 products for a single shoe
+    // photo. Match on the fields that actually identify a product, then rank.
     const orClause = [];
     regexes.forEach((rx) => {
-      orClause.push(
-        { title: rx },
-        { brand: rx },
-        { description: rx },
-        { color: rx }
-      );
+      orClause.push({ title: rx }, { brand: rx }, { color: rx });
     });
     if (categoryIds.size > 0) {
       orClause.push({ category: { $in: [...categoryIds] } });
     }
 
-    let products = await Product.find(
+    const candidates = await Product.find(
       orClause.length > 0 ? { $or: orClause } : {}
     )
       .populate("category")
       .select(IMAGE_FIELDS)
-      .limit(48)
+      .limit(200)
       .lean();
+
+    // A category or title hit is real evidence; brand/colour/description are
+    // only strong enough to order the ones that already qualify.
+    const scoreOf = (p) => {
+      let score = 0;
+      for (const rx of regexes) {
+        if (p.category && rx.test(p.category.name || "")) score += 6;
+        if (rx.test(p.title || "")) score += 4;
+        if (rx.test(p.brand || "")) score += 1;
+        if (rx.test(p.color || "")) score += 1;
+        if (rx.test(p.description || "")) score += 0.5;
+      }
+      return score;
+    };
+
+    const MIN_SCORE = 4; // i.e. at least one title or category match
+    let products = candidates
+      .map((product) => ({ product, score: scoreOf(product) }))
+      .filter((x) => x.score >= MIN_SCORE)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 48)
+      .map((x) => x.product);
 
     if (products.length === 0 && keywords.some((k) => /shoe|sandal|boot|heel|sneaker|loafer|flat/i.test(k))) {
       products = await Product.find({
