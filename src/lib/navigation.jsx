@@ -18,6 +18,18 @@ import {
   useParams as useNextParams,
 } from "next/navigation";
 
+// react-router accepts either a string or a partial location object
+// ({ pathname, search, hash }); next/navigation only accepts a string, so
+// collapse the object form to a href before it reaches the router.
+function toHref(to) {
+  if (typeof to === "string") return to;
+  if (!to || typeof to !== "object") return "/";
+  const { pathname = "", search = "", hash = "" } = to;
+  const qs = search && !search.startsWith("?") ? `?${search}` : search;
+  const frag = hash && !hash.startsWith("#") ? `#${hash}` : hash;
+  return `${pathname}${qs}${frag}` || "/";
+}
+
 // react-router carries arbitrary `state` across navigations in memory. Next has
 // no equivalent, so we stash it in sessionStorage keyed by destination path.
 const STATE_KEY = "__routerState";
@@ -56,12 +68,13 @@ export function useNavigate() {
         return;
       }
 
-      writeState(to, options.state);
+      const href = toHref(to);
+      writeState(href, options.state);
 
       if (options.replace) {
-        router.replace(to);
+        router.replace(href);
       } else {
-        router.push(to);
+        router.push(href);
       }
     },
     [router]
@@ -113,7 +126,7 @@ export const useParams = useNextParams;
 
 /** react-router's <Link to=...> mapped onto next/link. */
 export function Link({ to, href, state, replace, children, ...rest }) {
-  const target = to ?? href ?? "#";
+  const target = toHref(to ?? href ?? "#");
 
   const handleClick = (event) => {
     if (state) writeState(target, state);
@@ -137,9 +150,10 @@ export function Navigate({ to, replace = false, state }) {
   useEffect(() => {
     if (fired.current) return;
     fired.current = true;
-    writeState(to, state);
-    if (replace) router.replace(to);
-    else router.push(to);
+    const href = toHref(to);
+    writeState(href, state);
+    if (replace) router.replace(href);
+    else router.push(href);
   }, [router, to, replace, state]);
 
   return null;
