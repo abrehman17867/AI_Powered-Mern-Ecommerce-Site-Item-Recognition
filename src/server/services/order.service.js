@@ -140,10 +140,35 @@ async function createOrder(user, shippingAddress) {
   }
 }
 
+// Product images are stored as base64 data URIs on the document, so every
+// populate of a product would otherwise ship the full image inline. Order
+// views only need the product metadata.
+const ORDER_PRODUCT_FIELDS = "-imageUrl -images";
+const ORDER_USER_FIELDS = "-password";
+
+/**
+ * Shapes an order for the wire: points each product image at the streaming
+ * endpoint (the documents hold multi-hundred-KB base64 data URIs) and drops
+ * the buyer's password hash, which populate("user") would otherwise include.
+ */
+function serializeOrder(order) {
+  if (!order) return order;
+  const json = typeof order.toJSON === "function" ? order.toJSON() : order;
+  for (const item of json.orderItems || []) {
+    const product = item?.product;
+    if (product?._id) product.imageUrl = `/api/products/${product._id}/image`;
+  }
+  if (json.user?.password) delete json.user.password;
+  return json;
+}
+
 async function findOrderById(orderId) {
   const order = await Order.findById(orderId)
-    .populate("user")
-    .populate({ path: "orderItems", populate: { path: "product" } })
+    .populate({ path: "user", select: ORDER_USER_FIELDS })
+    .populate({
+      path: "orderItems",
+      populate: { path: "product", select: ORDER_PRODUCT_FIELDS },
+    })
     .populate("shippingAddress");
 
   return order;
@@ -152,11 +177,14 @@ async function findOrderById(orderId) {
 async function userOrderHistory(userId) {
   try {
     const orders = await Order.find({ user: userId })
-      .populate({ path: "orderItems", populate: { path: "product" } })
+      .populate({
+        path: "orderItems",
+        populate: { path: "product", select: ORDER_PRODUCT_FIELDS },
+      })
       .populate("shippingAddress")
       .lean();
 
-    return orders;
+    return orders.map(serializeOrder);
   } catch (error) {
     throw new Error(error.message);
   }
@@ -182,28 +210,28 @@ async function confirmedOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "CONFIRMED";
 
-  return await order.save();
+  return serializeOrder(await order.save());
 }
 
 async function shipOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "SHIPPED";
 
-  return await order.save();
+  return serializeOrder(await order.save());
 }
 
 async function deliverOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "DELIVERED";
 
-  return await order.save();
+  return serializeOrder(await order.save());
 }
 
 async function cancelledOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "CANCELLED";
 
-  return await order.save();
+  return serializeOrder(await order.save());
 }
 
 
@@ -223,8 +251,13 @@ async function cancelledOrder(orderId) {
 
 async function getAllOrders() {
   return await Order.find()
-    .populate({ path: "orderItems", populate: { path: "product" } })
-    .lean();
+    .populate({
+      path: "orderItems",
+      populate: { path: "product", select: ORDER_PRODUCT_FIELDS },
+    })
+    .populate({ path: "user", select: ORDER_USER_FIELDS })
+    .lean()
+    .then((orders) => orders.map(serializeOrder));
 }
 
 async function deleteOrder(orderId) {
@@ -240,6 +273,7 @@ module.exports = {
   deliverOrder,
   cancelledOrder,
   findOrderById,
+  serializeOrder,
   userOrderHistory,
   getAllOrders,
   deleteOrder,

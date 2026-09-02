@@ -15,7 +15,9 @@ const findOrderById = async (req, res) => {
    const user = await req.user;
   //const user = await User.findById(req.user._id).populate("address");
   try {
-    let createdOrder = await orderService.findOrderById(req.params.id);
+    let createdOrder = orderService.serializeOrder(
+      await orderService.findOrderById(req.params.id)
+    );
     return res.status(201).send(createdOrder);
   } catch (error) {
     return res.status(500).send({ error: error.message });
