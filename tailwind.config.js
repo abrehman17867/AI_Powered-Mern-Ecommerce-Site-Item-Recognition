@@ -115,6 +115,20 @@ module.exports = {
       transitionDuration: {
         DEFAULT: "200ms",
       },
+      // animate.css (imported globally in src/app/layout.jsx) also defines
+      // @keyframes pulse, using transform: scale3d(). Keyframe names are global
+      // and the last definition wins, so Tailwind's .animate-pulse was running
+      // animate.css's transform animation — which wiped out -translate-y-1/2 on
+      // the transform-centred camera button. A uniquely named keyframe restores
+      // the intended opacity fade everywhere.
+      keyframes: {
+        "tw-pulse": {
+          "50%": { opacity: "0.5" },
+        },
+      },
+      animation: {
+        pulse: "tw-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
     },
   },
   plugins: [],
