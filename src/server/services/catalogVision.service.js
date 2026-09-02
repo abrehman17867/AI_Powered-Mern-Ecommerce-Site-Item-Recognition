@@ -21,11 +21,20 @@ const {
  */
 
 const HF_TOKEN = process.env.HF_TOKEN;
+// Hugging Face retired api-inference.huggingface.co (the hostname no longer
+// resolves, which surfaced as a bare "fetch failed"). Inference now goes
+// through the Inference Providers router.
+const HF_API_BASE =
+  process.env.HF_API_BASE || "https://router.huggingface.co/hf-inference/models";
 const HF_CLIP_MODEL = process.env.HF_CLIP_MODEL || "openai/clip-vit-base-patch32";
 const HF_CLASSIFY_MODEL = process.env.HF_CLASSIFY_MODEL || "google/mobilenet_v2_1.0_224";
 
 let categoryNamesCache = null;
 let categoryCacheTime = 0;
+// The hf-inference provider no longer serves zero-shot-image-classification.
+// The ImageNet path below covers us, so after the provider rejects the model
+// once we skip CLIP instead of re-requesting it on every search.
+let clipUnsupported = false;
 const CACHE_MS = 5 * 60 * 1000;
 
 async function loadCategoryNames() {
@@ -39,7 +48,7 @@ async function loadCategoryNames() {
 }
 
 async function hfRequest(model, body, contentType) {
-  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+  const res = await fetch(`${HF_API_BASE}/${model}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${HF_TOKEN}`,
@@ -58,6 +67,7 @@ async function hfRequest(model, body, contentType) {
 
 /** Zero-shot classification against our catalog vocabulary. */
 async function classifyWithClip(imageBuffer) {
+  if (clipUnsupported) return [];
   const dbCategories = await loadCategoryNames();
   const candidateLabels = [
     ...new Set([...CATALOG_CLIP_LABELS, ...dbCategories]),
@@ -121,6 +131,9 @@ async function analyzeImageForCatalog(imagePath) {
       method = "clip";
     }
   } catch (err) {
+    if (/not supported by provider|(400|404)/.test(err.message)) {
+      clipUnsupported = true;
+    }
     console.warn("[catalogVision] CLIP failed, using ImageNet only:", err.message);
   }
 
