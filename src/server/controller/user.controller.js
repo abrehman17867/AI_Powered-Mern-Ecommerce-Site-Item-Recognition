@@ -53,4 +53,17 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-module.exports = { getUserProfile, getAllUsers, updateUserProfile, changePassword };
+/** PUT /api/users/role — switch which of the caller's roles is active. */
+const switchRole = async (req, res) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).send({ error: "Not authenticated" });
+    }
+    const user = await userService.switchUserRole(req.user._id, req.body?.role);
+    return res.status(200).send(user);
+  } catch (error) {
+    return res.status(400).send({ error: error.message });
+  }
+};
+
+module.exports = { getUserProfile, getAllUsers, updateUserProfile, changePassword, switchRole };

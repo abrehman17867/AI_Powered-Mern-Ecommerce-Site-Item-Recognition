@@ -12,7 +12,15 @@ import {
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { classNames } from "../../../utils/classNames";
-import { isAdminUser } from "../../../utils/authRoles";
+import { useDispatch } from "react-redux";
+import {
+  isAdminUser,
+  getUserRoles,
+  getActiveRole,
+  hasMultipleRoles,
+  ROLE_LABELS,
+} from "../../../utils/authRoles";
+import { switchRole } from "../../../State/Auth/Action";
 
 function userInitials(user) {
   const a = (user?.firstName?.[0] ?? "").toUpperCase();
@@ -80,6 +88,23 @@ export default function UserAccountMenu({
   onLogout,
 }) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [switching, setSwitching] = React.useState(false);
+
+  // Declared before the early return below so hook order stays stable.
+  const handleSwitchRole = async (role) => {
+    if (switching) return;
+    setSwitching(true);
+    try {
+      const updated = await dispatch(switchRole(role));
+      // The area you are in may no longer be reachable under the new role.
+      navigate(String(updated?.role).toUpperCase() === "ADMIN" ? "/admin" : "/");
+    } catch {
+      /* server rejected the switch; the menu keeps the current role */
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   if (!user?.firstName && !user?._id) return null;
 
@@ -168,6 +193,39 @@ export default function UserAccountMenu({
                   </div>
                 </div>
               </div>
+
+              {hasMultipleRoles(user) ? (
+                <div className="border-b border-zinc-100 px-4 py-3">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                    Viewing as
+                  </p>
+                  <div className="flex gap-1.5" role="group" aria-label="Switch role">
+                    {getUserRoles(user).map((r) => {
+                      const isActive = getActiveRole(user) === r;
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          disabled={isActive || switching}
+                          aria-pressed={isActive}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleSwitchRole(r);
+                          }}
+                          className={classNames(
+                            "flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-default",
+                            isActive
+                              ? "bg-brand-600 text-white shadow-sm"
+                              : "bg-zinc-100 text-zinc-600 hover:bg-orange-100 hover:text-orange-700"
+                          )}
+                        >
+                          {ROLE_LABELS[r] || r}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="p-2">
                 {accountItems.map((item) => (

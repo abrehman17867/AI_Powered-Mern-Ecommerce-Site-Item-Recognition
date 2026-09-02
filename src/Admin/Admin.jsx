@@ -17,6 +17,7 @@ import {
 import { getUser, logout } from "../State/Auth/Action";
 import UserAccountMenu from "../customer/components/navigation/UserAccountMenu";
 import { classNames } from "../utils/classNames";
+import { isAdminUser } from "../utils/authRoles";
 import "./admin.css";
 
 const NAV = [
@@ -95,6 +96,21 @@ const Admin = ({ children }) => {
     if (localStorage.getItem("jwt")) dispatch(getUser(undefined, { silent: true }));
   }, [dispatch]);
 
+  // Nothing here is usable without an admin session — every panel just 403s.
+  // Wait until the profile has actually loaded before deciding, so a refresh
+  // does not bounce a genuine admin out mid-fetch.
+  const signedIn = typeof window !== "undefined" && Boolean(localStorage.getItem("jwt"));
+  const authorized = isAdminUser(user);
+  useEffect(() => {
+    if (!signedIn) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    if (user?._id && !authorized) {
+      navigate("/", { replace: true });
+    }
+  }, [signedIn, user?._id, authorized, navigate]);
+
   useEffect(() => setDrawerOpen(false), [location.pathname]);
 
   const page = useMemo(() => currentPage(location.pathname), [location.pathname]);
@@ -115,6 +131,18 @@ const Admin = ({ children }) => {
       </Link>
     </div>
   );
+
+  // Render nothing until access is confirmed, otherwise the panels fire their
+  // requests and the screen fills with 403 toasts before the redirect lands.
+  if (!signedIn || !authorized) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <p className="text-sm text-zinc-500">
+          {user?._id ? "Redirecting…" : "Checking access…"}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-root">

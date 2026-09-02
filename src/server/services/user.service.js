@@ -98,10 +98,45 @@ const getAllUsers = async () => {
   }
 };
 
+const VALID_ROLES = ["CUSTOMER", "ADMIN"];
+
+/**
+ * Documents created before multi-role support have no roles array, so derive
+ * one from the active role and guarantee the active role is always a member.
+ */
+const normalizeRoles = (user) => {
+  const active = String(user?.role || "CUSTOMER").toUpperCase();
+  const list = Array.isArray(user?.roles) ? user.roles : [];
+  const roles = [...new Set([...list, active].map((r) => String(r).toUpperCase()))]
+    .filter((r) => VALID_ROLES.includes(r));
+  return roles.length > 0 ? roles : ["CUSTOMER"];
+};
+
 const sanitizeUser = (user) => {
   const obj = user?.toObject ? user.toObject() : { ...user };
   delete obj.password;
+  obj.roles = normalizeRoles(obj);
   return obj;
+};
+
+/**
+ * Switches which of the user's roles is active. Refuses roles the user does
+ * not hold, so this cannot be used to self-promote to ADMIN.
+ */
+const switchUserRole = async (userId, requestedRole) => {
+  const role = String(requestedRole || "").toUpperCase();
+  if (!VALID_ROLES.includes(role)) {
+    throw new Error(`Unknown role: ${requestedRole}`);
+  }
+  const user = await findUserById(userId);
+  const roles = normalizeRoles(user);
+  if (!roles.includes(role)) {
+    throw new Error("You do not have access to that role");
+  }
+  user.roles = roles;
+  user.role = role;
+  await user.save();
+  return sanitizeUser(user);
 };
 
 const updateUserProfile = async (userId, profileData) => {
@@ -174,6 +209,8 @@ module.exports = {
   getAllUsers,
   getUserProfileByToken,
   sanitizeUser,
+  normalizeRoles,
+  switchUserRole,
   updateUserProfile,
   changeUserPassword,
 };

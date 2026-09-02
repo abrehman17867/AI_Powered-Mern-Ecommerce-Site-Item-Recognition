@@ -2,6 +2,7 @@ import {
   GET_USER_FAILURE,
   GET_USER_REQUEST,
   GET_USER_SUCCESS,
+  SWITCH_ROLE_SUCCESS,
   LOGIN_FAILURE,
   LOGIN_REQUEST,
   LOGIN_SUCCESS,
@@ -34,6 +35,7 @@ export const authReducer = (state = initialState, action) => {
         error: null,
       };
     case GET_USER_SUCCESS:
+    case SWITCH_ROLE_SUCCESS:
       return { ...state, isLoading: false, error: null, user: action.payload };
     case REGISTER_FAILURE:
     case LOGIN_FAILURE:

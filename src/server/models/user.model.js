@@ -22,10 +22,20 @@ const userSchema = new mongoose.Schema({
   //   required: true,
   //   default: "CUSTOMER",
   // },
+  // The role currently in effect. For a user holding several roles this is
+  // whichever one they last switched to; every authorisation check reads it.
   role: {
     type: String,
     enum: ["CUSTOMER", "ADMIN"],
     default: "CUSTOMER",
+  },
+  // Every role the user is entitled to. A user with more than one gets a role
+  // switcher in the account menu. Legacy documents have no roles array, so
+  // read it through normalizeRoles() in user.service rather than directly.
+  roles: {
+    type: [String],
+    enum: ["CUSTOMER", "ADMIN"],
+    default: ["CUSTOMER"],
   },
   mobile: {
     type: String,

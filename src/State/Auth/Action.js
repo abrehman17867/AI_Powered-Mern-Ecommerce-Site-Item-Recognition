@@ -15,6 +15,7 @@ import {
   REGISTER_FAILURE,
   REGISTER_REQUEST,
   REGISTER_SUCCESS,
+  SWITCH_ROLE_SUCCESS,
 } from "./ActionType";
 
 const registerRequest = () => ({ type: REGISTER_REQUEST });
@@ -60,6 +61,16 @@ const getUserSuccess = (user) => ({ type: GET_USER_SUCCESS, payload: user });
 const getUserFailure = (error) => ({ type: GET_USER_FAILURE, payload: error });
 
 export const clearAuthError = () => ({ type: CLEAR_AUTH_ERROR });
+
+/**
+ * Switches the active role server-side and stores the updated user. The server
+ * rejects roles the account does not hold, so no client-side guard is needed.
+ */
+export const switchRole = (role) => async (dispatch) => {
+  const { data } = await api.put("/api/users/role", { role });
+  dispatch({ type: SWITCH_ROLE_SUCCESS, payload: data });
+  return data;
+};
 
 export const getUser = (jwt, options = {}) => async (dispatch, getState) => {
   const token = jwt || localStorage.getItem("jwt");
