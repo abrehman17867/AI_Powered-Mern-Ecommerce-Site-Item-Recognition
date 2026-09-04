@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "@/lib/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -17,6 +17,8 @@ import {
 import { getUser, logout } from "../State/Auth/Action";
 import UserAccountMenu from "../customer/components/navigation/UserAccountMenu";
 import { classNames } from "../utils/classNames";
+import Button from "../components/ui/Button";
+import LoadingState from "../components/ui/LoadingState";
 import { isAdminUser } from "../utils/authRoles";
 import "./admin.css";
 
@@ -90,17 +92,40 @@ const Admin = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { user } = useSelector((store) => store.auth);
+  const { user, error: authError } = useSelector((store) => store.auth);
 
-  useEffect(() => {
-    if (localStorage.getItem("jwt")) dispatch(getUser(undefined, { silent: true }));
+  // Track that the profile lookup has *finished*, rather than waiting for a
+  // user object to appear. `getUser` is dispatched with `silent: true`, and on
+  // any non-401 failure it deliberately dispatches nothing at all — no error,
+  // no user, no loading change. Keying the guard off `user` alone therefore
+  // left this screen stuck on "Checking access…" forever after a single failed
+  // profile request, with no error and no way out but a manual refresh.
+  const [profileChecked, setProfileChecked] = useState(false);
+
+  const loadProfile = useCallback(() => {
+    if (!localStorage.getItem("jwt")) {
+      setProfileChecked(true);
+      return Promise.resolve();
+    }
+    setProfileChecked(false);
+    return Promise.resolve(dispatch(getUser(undefined, { silent: true }))).finally(() =>
+      setProfileChecked(true)
+    );
   }, [dispatch]);
 
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
   // Nothing here is usable without an admin session — every panel just 403s.
-  // Wait until the profile has actually loaded before deciding, so a refresh
+  // Wait until the profile check has settled before deciding, so a refresh
   // does not bounce a genuine admin out mid-fetch.
   const signedIn = typeof window !== "undefined" && Boolean(localStorage.getItem("jwt"));
   const authorized = isAdminUser(user);
+  // The check ran, the token is still there, but no profile came back: the
+  // request failed. Show a way out instead of spinning.
+  const profileUnavailable = profileChecked && signedIn && !user?._id;
+
   useEffect(() => {
     if (!signedIn) {
       navigate("/login", { replace: true });
@@ -132,14 +157,47 @@ const Admin = ({ children }) => {
     </div>
   );
 
-  // Render nothing until access is confirmed, otherwise the panels fire their
+  // Hold the panels back until access is confirmed, otherwise they fire their
   // requests and the screen fills with 403 toasts before the redirect lands.
+  if (profileUnavailable) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6">
+        <div className="w-full max-w-sm rounded-2xl border border-line bg-white p-6 text-center shadow-sm">
+          <h1 className="text-base font-semibold text-foreground">
+            Could not verify your session
+          </h1>
+          <p className="mt-2 text-sm text-foreground-muted">
+            {authError ||
+              "We could not load your admin profile. The server may be unreachable."}
+          </p>
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button type="button" onClick={loadProfile}>
+              Try again
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                dispatch(logout());
+                localStorage.clear();
+                navigate("/login", { replace: true });
+              }}
+            >
+              Sign in again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!signedIn || !authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <p className="text-sm text-zinc-500">
-          {user?._id ? "Redirecting…" : "Checking access…"}
-        </p>
+        <LoadingState
+          minHeight="min-h-0"
+          label={user?._id ? "Redirecting…" : "Checking access…"}
+        />
       </div>
     );
   }
@@ -170,7 +228,7 @@ const Admin = ({ children }) => {
       ) : null}
       <aside
         className={classNames(
-          "admin-drawer flex flex-col transition-transform duration-200",
+          "admin-drawer flex flex-col transition-transform duration-200 lg:hidden",
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

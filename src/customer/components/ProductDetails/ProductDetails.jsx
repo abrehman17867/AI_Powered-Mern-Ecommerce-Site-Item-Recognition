@@ -18,6 +18,7 @@ import EmptyState from "../../../components/ui/EmptyState";
 import StarRating from "../../../components/ui/StarRating";
 import ProductDetailsGallery from "./ProductDetailsGallery";
 import ProductReviewsSection from "./ProductReviewsSection";
+import ProductRelated from "./ProductRelated";
 import { findProductsById } from "../../../State/Product/Action";
 import { addItemToCart } from "../../../State/Cart/Action";
 import { findReviews } from "../../../State/Review/Action";
@@ -38,7 +39,9 @@ export default function ProductDetails() {
   const { productId } = useParams();
   const dispatch = useDispatch();
 
-  const { product: productData, loading } = useSelector((store) => store.products);
+  const { product: productData, loading, error: productError } = useSelector(
+    (store) => store.products
+  );
   const addingItem = useSelector((store) => store.cart.addingItem);
   const { reviews: reviewList } = useSelector((store) => store.reviews);
   const { ratings: ratingList, totalRating } = useSelector((store) => store.ratings);
@@ -138,7 +141,17 @@ export default function ProductDetails() {
     if (ok) navigate("/checkout");
   };
 
-  const initialProductLoad = loading && !productData;
+  // The store holds one product at a time, so after navigating from product A
+  // to product B it still contains A until B arrives. Keying off the route id
+  // means the page shows a loading state for B instead of A's title, price and
+  // image dimmed to 70% — which read as "this page is broken", not "loading".
+  const showsCurrentProduct =
+    Boolean(productData) && String(productData._id) === String(productId);
+  // Only an actual failure counts as "not found". On the first frame the fetch
+  // has not been dispatched yet (loading is still false), so testing `loading`
+  // alone would flash the empty state before the request even starts.
+  const productMissing = !showsCurrentProduct && !loading && Boolean(productError);
+  const initialProductLoad = !showsCurrentProduct && !productMissing;
 
   if (initialProductLoad) {
     return (
@@ -148,7 +161,7 @@ export default function ProductDetails() {
     );
   }
 
-  if (!productData) {
+  if (productMissing) {
     return (
       <div className="page-section bg-surface">
         <div className="app-container py-16">
@@ -165,12 +178,7 @@ export default function ProductDetails() {
 
   return (
     <div className="page-section bg-surface">
-      <div
-        className={classNames(
-          "app-container pb-16 pt-4 md:pt-6",
-          loading && "pointer-events-none opacity-70"
-        )}
-      >
+      <div className="app-container pb-16 pt-4 md:pt-6">
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="mb-6">
           <ol className="flex flex-wrap items-center gap-1 text-sm text-foreground-muted">
@@ -326,10 +334,12 @@ export default function ProductDetails() {
                 type="button"
                 size="lg"
                 className="flex-1 !py-3.5"
-                disabled={!inStock || adding || addingItem}
+                loading={adding || addingItem}
+                loadingLabel="Adding…"
+                disabled={!inStock}
                 onClick={handleAddToCart}
               >
-                {adding || addingItem ? "Adding…" : "Add to cart"}
+                Add to cart
               </Button>
               <Button
                 type="button"
@@ -375,6 +385,8 @@ export default function ProductDetails() {
           totalRating={totalRating}
           findRating={findRating}
         />
+
+        <ProductRelated productId={productId} category={productData.category} />
       </div>
     </div>
   );

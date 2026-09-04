@@ -14,3 +14,4 @@ yarn-error.log*
 *.pem
 .vercel
 scripts/.relabel-cache.json
+scripts/.repair-image-cache.json

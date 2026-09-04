@@ -51,6 +51,21 @@ const SelectPanel = React.forwardRef(function SelectPanel(
   { open, compact, menuStyle, options },
   ref
 ) {
+  // `menuStyle` is measured from the button in a layout effect, so on the first
+  // render after opening it is still null. In that gap the compact panel used
+  // to render in normal flow with no positioning at all — inside a table cell
+  // that made the whole row jump taller by the height of the dropdown before
+  // the portal took over. Park it out of flow until the real position lands so
+  // it can never occupy layout space.
+  const offscreen = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    opacity: 0,
+    pointerEvents: "none",
+    zIndex: -1,
+  };
+
   const panel = (
     <Listbox.Options
       ref={ref}
@@ -58,7 +73,7 @@ const SelectPanel = React.forwardRef(function SelectPanel(
         "max-h-60 overflow-auto rounded-xl border border-line bg-surface py-1.5 shadow-lg ring-1 ring-black/5 focus:outline-none",
         compact ? "min-w-[9.5rem]" : "absolute z-50 mt-1.5 w-full"
       )}
-      style={compact && menuStyle ? menuStyle : undefined}
+      style={compact ? menuStyle || offscreen : undefined}
     >
       <SelectOptions options={options} compact={compact} />
     </Listbox.Options>

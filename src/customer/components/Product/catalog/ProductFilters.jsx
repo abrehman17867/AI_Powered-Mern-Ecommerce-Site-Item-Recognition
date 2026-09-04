@@ -232,7 +232,7 @@ export default function ProductFilters({
         </FilterSection>
       </div>
 
-      <div className="sticky bottom-0 flex items-center gap-2 border-t border-line bg-white py-3">
+      <div className="safe-area-pb sticky bottom-0 flex items-center gap-2 border-t border-line bg-white py-3">
         <Button
           variant="secondary"
           size="sm"

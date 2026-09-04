@@ -4,6 +4,9 @@
 
 .app-toast.Toastify__toast {
   border-radius: 14px;
+  /* The progress bar is a square-cornered strip pinned to the bottom edge; without
+     this it paints past the rounded corners. */
+  overflow: hidden;
   padding: 14px 16px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -47,4 +50,50 @@
 
 .app-toast.Toastify__toast--warning .Toastify__progress-bar {
   background: #f59e0b;
+}
+
+/* react-toastify's own "@media (max-width: 480px)" rules make the container
+   full-bleed: width:100vw, padding:0, bottom:env(safe-area-inset-bottom), plus
+   border-radius:0 / margin-bottom:0 on each toast. The card then sits flush in
+   the bottom corner with its rounded corners clipped by the screen edges — it
+   reads as cut off. Restore real insets so a toast on a phone looks like the
+   same card it is on desktop.
+
+   The doubled class raises specificity above the library's single-class rules
+   so this does not depend on stylesheet import order. */
+@media only screen and (max-width: 480px) {
+  .Toastify__toast-container.Toastify__toast-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 12px;
+    left: 0;
+    right: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  .Toastify__toast-container--bottom-left.Toastify__toast-container,
+  .Toastify__toast-container--bottom-center.Toastify__toast-container,
+  .Toastify__toast-container--bottom-right.Toastify__toast-container {
+    /* --app-bottom-bar is published by screens that render a fixed bottom
+       action bar (cart, checkout) so a toast never lands underneath it. */
+    bottom: calc(
+      12px + var(--app-bottom-bar, 0px) + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  .Toastify__toast-container--top-left.Toastify__toast-container,
+  .Toastify__toast-container--top-center.Toastify__toast-container,
+  .Toastify__toast-container--top-right.Toastify__toast-container {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+
+  .app-toast.Toastify__toast {
+    margin-bottom: 10px;
+    border-radius: 14px;
+  }
+
+  .app-toast.Toastify__toast:last-child {
+    margin-bottom: 0;
+  }
 }

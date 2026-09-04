@@ -33,6 +33,8 @@ import { api } from "../../config/apiConfig";
 import { getAllCategories } from "../../State/Category/Action";
 import AdminPageHeader from "./ui/AdminPageHeader";
 import ConfirmDialog from "./ui/ConfirmDialog";
+import InlineLoadingBar from "../../components/ui/InlineLoadingBar";
+import { Skeleton } from "../../components/ui/Skeleton";
 import { adminToast } from "../../utils/adminToast";
 
 function parentName(categories, parentId) {
@@ -44,7 +46,13 @@ function parentName(categories, parentId) {
 export default function CategoriesAdmin() {
   const dispatch = useDispatch();
   const [categories, setCategories] = useState([]);
+  // Split so a reload after a create/edit/delete keeps the existing rows on
+  // screen behind a thin bar, instead of replacing the whole table body with
+  // a "Loading…" cell every single time.
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [level, setLevel] = useState("1");
   const [parentId, setParentId] = useState("");
@@ -58,8 +66,9 @@ export default function CategoriesAdmin() {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ background = false } = {}) => {
+    if (background) setRefreshing(true);
+    else setLoading(true);
     try {
       const { data } = await api.get("/api/products/categories");
       setCategories(Array.isArray(data) ? data : []);
@@ -67,6 +76,7 @@ export default function CategoriesAdmin() {
       adminToast.error("Failed to load categories.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -103,15 +113,18 @@ export default function CategoriesAdmin() {
       }
       body.parentCategoryId = parentId;
     }
+    setCreating(true);
     try {
       await api.post("/api/admin/categories", body);
       adminToast.success("Category created.");
       setName("");
       if (lev > 1) setParentId("");
-      await load();
+      await load({ background: true });
       dispatch(getAllCategories());
     } catch (err) {
       adminToast.error(err.response?.data?.error || err.message || "Create failed.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -128,7 +141,7 @@ export default function CategoriesAdmin() {
       adminToast.success("Category deleted.");
       setDeleteConfirmOpen(false);
       setPendingDeleteId(null);
-      await load();
+      await load({ background: true });
       dispatch(getAllCategories());
     } catch (err) {
       adminToast.error(err.response?.data?.error || err.message || "Delete failed.");
@@ -166,14 +179,17 @@ export default function CategoriesAdmin() {
       }
       body.parentCategoryId = editParentId;
     }
+    setSaving(true);
     try {
       await api.patch(`/api/admin/categories/${editingId}`, body);
       adminToast.success("Category updated.");
       cancelEdit();
-      await load();
+      await load({ background: true });
       dispatch(getAllCategories());
     } catch (err) {
       adminToast.error(err.response?.data?.error || err.message || "Update failed.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -272,7 +288,7 @@ export default function CategoriesAdmin() {
               </Select>
             </FormControl>
           )}
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" loading={creating} loadingLabel="Creating…" disabled={loading}>
             Create
           </Button>
         </Box>
@@ -310,8 +326,9 @@ export default function CategoriesAdmin() {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper}>
-        <Table size="small">
+      <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+        <InlineLoadingBar active={refreshing} label="Refreshing categories" />
+        <Table size="small" sx={{ minWidth: 640 }}>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
@@ -321,13 +338,23 @@ export default function CategoriesAdmin() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell colSpan={4}>
-                  Loading…
-                </TableCell>
-              </TableRow>
-            )}
+            {loading &&
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  <TableCell>
+                    <Skeleton className="h-3.5 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-3.5 w-6" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-3.5 w-24" />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Skeleton className="ml-auto h-3.5 w-20" />
+                  </TableCell>
+                </TableRow>
+              ))}
             {!loading && visibleRows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4}>
@@ -400,14 +427,16 @@ export default function CategoriesAdmin() {
                           size="small"
                           startIcon={<SaveOutlinedIcon />}
                           onClick={saveEdit}
+                          disabled={saving}
                         >
-                          Save
+                          {saving ? "Saving…" : "Save"}
                         </MuiButton>
                         <MuiButton
                           size="small"
                           color="inherit"
                           startIcon={<CloseIcon />}
                           onClick={cancelEdit}
+                          disabled={saving}
                         >
                           Cancel
                         </MuiButton>
@@ -418,6 +447,7 @@ export default function CategoriesAdmin() {
                           size="small"
                           startIcon={<EditOutlinedIcon />}
                           onClick={() => startEdit(row)}
+                          disabled={saving || deleteBusy}
                         >
                           Edit
                         </MuiButton>
@@ -426,6 +456,7 @@ export default function CategoriesAdmin() {
                           size="small"
                           startIcon={<DeleteOutlineIcon />}
                           onClick={() => openDeleteConfirm(row._id)}
+                          disabled={saving || deleteBusy}
                         >
                           Delete
                         </MuiButton>

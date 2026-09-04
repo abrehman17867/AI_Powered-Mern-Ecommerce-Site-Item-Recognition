@@ -111,8 +111,13 @@ export default function LoginForm({ compact = false, onClose }) {
           </button>
         </div>
 
-        <Button type="submit" className="w-full !py-3" disabled={auth.isLoading}>
-          {auth.isLoading ? "Signing in…" : "Sign in"}
+        <Button
+          type="submit"
+          className="w-full !py-3"
+          loading={auth.isLoading}
+          loadingLabel="Signing in…"
+        >
+          Sign in
         </Button>
       </form>
     </AuthFormPanel>

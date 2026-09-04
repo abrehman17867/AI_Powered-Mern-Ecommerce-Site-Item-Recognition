@@ -23,109 +23,112 @@ import {
 } from "./ActionType";
 
 const initialState = {
-  loading: false,
   orders: [],
-  error: "",
+  // First load, when there is nothing to show yet — the only time a skeleton
+  // is allowed to replace the table.
+  loading: false,
+  // Background refetch with rows already on screen — shows a thin bar instead.
+  refreshing: false,
+  // Id of the order whose status is being changed / that is being deleted, so
+  // the busy state is scoped to one row rather than the whole page.
+  mutatingOrderId: null,
+  error: null,
+};
+
+/**
+ * Merge a server response for one order back into the list.
+ *
+ * The status endpoints return the full populated order, but we still merge
+ * field-by-field over the existing row: if a response ever comes back without
+ * `orderItems` / `user` populated, the row keeps what it already had rather
+ * than blanking out mid-table.
+ */
+const mergeOrder = (orders, updated) => {
+  if (!updated?._id) return orders;
+  return orders.map((order) =>
+    String(order._id) === String(updated._id) ? { ...order, ...updated } : order
+  );
 };
 
 const adminOrderReducer = (state = initialState, action) => {
   switch (action.type) {
-    case GET_ORDERS_REQUEST:
+    case GET_ORDERS_REQUEST: {
+      // Decided here rather than at the call site so no caller can forget it.
+      const hasRows = state.orders.length > 0;
       return {
         ...state,
-        loading: true,
+        loading: !hasRows,
+        refreshing: hasRows,
+        error: null,
       };
+    }
     case GET_ORDERS_SUCCESS:
       return {
+        ...state,
         loading: false,
-        orders: action.payload,
-        error: "",
+        refreshing: false,
+        orders: Array.isArray(action.payload) ? action.payload : [],
+        error: null,
       };
     case GET_ORDERS_FAILURE:
       return {
+        ...state,
         loading: false,
-        orders: [],
+        refreshing: false,
         error: action.payload,
       };
+
     case CONFIRMED_ORDER_REQUEST:
     case PLACED_ORDER_REQUEST:
     case DELIVERED_ORDER_REQUEST:
     case CANCELLED_ORDER_REQUEST:
+    case SHIP_ORDER_REQUEST:
+    case DELETE_ORDER_REQUEST:
       return {
         ...state,
-        isLoading: true,
+        mutatingOrderId: action.payload ?? null,
+        error: null,
       };
+
+    // Every status change patches the row in place. There is no refetch and no
+    // sentinel key for an effect to watch, so the table never blanks after an
+    // update — which is what the old `confirmed`/`shipped`/`delivered` keys and
+    // their dependent useEffect were doing.
     case CONFIRMED_ORDER_SUCCESS:
-      return {
-        ...state,
-        confirmed: action.payload,
-        isLoading: false,
-      };
     case PLACED_ORDER_SUCCESS:
-      return {
-        ...state,
-        placed: action.payload,
-        isLoading: false,
-      };
     case DELIVERED_ORDER_SUCCESS:
-      return {
-        ...state,
-        delivered: action.payload,
-        isLoading: false,
-      };
     case CANCELLED_ORDER_SUCCESS:
+    case SHIP_ORDER_SUCCESS:
       return {
         ...state,
-        canceled: action.payload,
-        isLoading: false,
+        orders: mergeOrder(state.orders, action.payload),
+        mutatingOrderId: null,
+        error: null,
+      };
+
+    // The delete endpoint returns an empty body, so the action supplies the id.
+    case DELETE_ORDER_SUCCESS:
+      return {
+        ...state,
+        orders: state.orders.filter(
+          (order) => String(order._id) !== String(action.payload)
+        ),
+        mutatingOrderId: null,
+        error: null,
       };
 
     case CONFIRMED_ORDER_FAILURE:
     case PLACED_ORDER_FAILURE:
     case DELIVERED_ORDER_FAILURE:
     case CANCELLED_ORDER_FAILURE:
-      return {
-        ...state,
-        error: action.payload,
-        isLoading: false,
-      };
-
-    case DELETE_ORDER_REQUEST:
-      return {
-        ...state,
-        loading: true,
-      };
-    case DELETE_ORDER_SUCCESS:
-      return {
-        ...state,
-        loading: false,
-        deletedOrder: action.payload,
-      };
+    case SHIP_ORDER_FAILURE:
     case DELETE_ORDER_FAILURE:
       return {
         ...state,
-        loading: false,
+        mutatingOrderId: null,
         error: action.payload,
       };
 
-    case SHIP_ORDER_REQUEST:
-      return {
-        ...state,
-        isLoading: true,
-        error: null,
-      };
-    case SHIP_ORDER_SUCCESS:
-      return {
-        ...state,
-        isLoading: false,
-        shipped: action.payload,
-      };
-    case SHIP_ORDER_FAILURE:
-      return {
-        ...state,
-        isLoading: false,
-        error: action.payload,
-      };
     default:
       return state;
   }

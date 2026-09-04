@@ -19,6 +19,7 @@ import Button from "../../../components/ui/Button";
 import LoadingState from "../../../components/ui/LoadingState";
 import EmptyState from "../../../components/ui/EmptyState";
 import { classNames } from "../../../utils/classNames";
+import useBottomBarOffset from "../../../hooks/useBottomBarOffset";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat(undefined, {
@@ -42,6 +43,7 @@ export const OrderSummary = () => {
   const searchParams = new URLSearchParams(location.search);
   const orderId = searchParams.get("order_id");
   const [paymentBusy, setPaymentBusy] = useState(false);
+  useBottomBarOffset(true);
   const [paymentError, setPaymentError] = useState(null);
 
   const order = orderSlice.order;
@@ -151,9 +153,11 @@ export const OrderSummary = () => {
         <Button
           className="hidden w-full !py-3 lg:flex"
           onClick={handleCheckout}
+          loading={paymentBusy}
+          loadingLabel="Redirecting…"
           disabled={loading || items.length === 0}
         >
-          {paymentBusy ? "Redirecting…" : "Pay with Stripe"}
+          Pay with Stripe
         </Button>
 
         <ul className="mt-4 space-y-2">
@@ -242,7 +246,7 @@ export const OrderSummary = () => {
       {/* Mobile payment bar */}
       <div
         className={classNames(
-          "fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden"
+          "safe-area-pb fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden"
         )}
       >
         <div className="mx-auto flex max-w-app items-center justify-between gap-4">
@@ -255,9 +259,11 @@ export const OrderSummary = () => {
           <Button
             className="min-w-[10rem] !py-2.5"
             onClick={handleCheckout}
+            loading={paymentBusy}
+            loadingLabel="Redirecting…"
             disabled={loading || items.length === 0}
           >
-            {paymentBusy ? "Redirecting…" : "Pay now"}
+            Pay now
           </Button>
         </div>
       </div>

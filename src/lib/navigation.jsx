@@ -10,6 +10,7 @@
  */
 
 import NextLink from "next/link";
+import { startRouteProgress } from "./routeProgress";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   usePathname,
@@ -45,6 +46,10 @@ function writeState(to, state) {
   }
 }
 
+function pathOf(href) {
+  return String(href).split("?")[0].split("#")[0];
+}
+
 function readState(pathname) {
   if (typeof window === "undefined") return undefined;
   try {
@@ -58,11 +63,13 @@ function readState(pathname) {
 /** react-router's useNavigate(): navigate(to, { replace, state }) */
 export function useNavigate() {
   const router = useRouter();
+  const pathname = usePathname();
 
   return useCallback(
     (to, options = {}) => {
       if (typeof to === "number") {
         // navigate(-1) style history traversal
+        startRouteProgress();
         if (to < 0) router.back();
         else router.forward();
         return;
@@ -71,13 +78,17 @@ export function useNavigate() {
       const href = toHref(to);
       writeState(href, options.state);
 
+      // Announce the transition immediately so the top bar appears on click
+      // rather than when the next route finally commits.
+      if (pathOf(href) !== pathname) startRouteProgress();
+
       if (options.replace) {
         router.replace(href);
       } else {
         router.push(href);
       }
     },
-    [router]
+    [router, pathname]
   );
 }
 
@@ -127,10 +138,17 @@ export const useParams = useNextParams;
 /** react-router's <Link to=...> mapped onto next/link. */
 export function Link({ to, href, state, replace, children, ...rest }) {
   const target = toHref(to ?? href ?? "#");
+  const pathname = usePathname();
 
   const handleClick = (event) => {
     if (state) writeState(target, state);
     rest.onClick?.(event);
+    // Skip modified clicks (new tab/window) and same-page links.
+    const modified =
+      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button > 0;
+    if (!modified && !event.defaultPrevented && target !== "#" && pathOf(target) !== pathname) {
+      startRouteProgress();
+    }
   };
 
   return (

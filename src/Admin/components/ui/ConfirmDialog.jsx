@@ -54,10 +54,11 @@ export default function ConfirmDialog({
                 <Button
                   variant={danger ? "danger" : "primary"}
                   type="button"
-                  disabled={loading}
+                  loading={loading}
+                  loadingLabel="Please wait…"
                   onClick={onConfirm}
                 >
-                  {loading ? "Please wait…" : confirmLabel}
+                  {confirmLabel}
                 </Button>
               </div>
             </Dialog.Panel>

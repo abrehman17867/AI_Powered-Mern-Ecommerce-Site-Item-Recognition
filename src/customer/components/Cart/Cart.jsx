@@ -17,6 +17,7 @@ import Button from "../../../components/ui/Button";
 import LoadingState from "../../../components/ui/LoadingState";
 import EmptyState from "../../../components/ui/EmptyState";
 import { classNames } from "../../../utils/classNames";
+import useBottomBarOffset from "../../../hooks/useBottomBarOffset";
 
 const formatMoney = (value) =>
   new Intl.NumberFormat(undefined, {
@@ -42,6 +43,10 @@ export default function Cart() {
     () => items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0),
     [items]
   );
+
+  // Lifts bottom-anchored overlays (the toast container) above the fixed
+  // mobile checkout bar below.
+  useBottomBarOffset(items.length > 0);
 
   const initialLoad = loading && items.length === 0;
   const isEmpty = !initialLoad && !error && items.length === 0;

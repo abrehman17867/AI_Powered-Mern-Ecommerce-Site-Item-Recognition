@@ -103,12 +103,13 @@ export const createProduct = (product) => async (dispatch) => {
 };
 
 export const deleteProduct = (productId) => async (dispatch) => {
+  // The id rides along on the request so the reducer can mark just this row
+  // busy, and on success so it can drop the row without a refetch.
+  dispatch({ type: DELETE_PRODUCT_REQUEST, payload: productId });
   try {
-    dispatch({ type: DELETE_PRODUCT_REQUEST });
-    const { data } = await api.delete(`/api/admin/products/${productId}/delete`);
+    await api.delete(`/api/admin/products/${productId}/delete`);
     dispatch({ type: DELETE_PRODUCT_SUCCESS, payload: productId });
-    console.log("Delete product : ", data);
-    return data;
+    return productId;
   } catch (error) {
     dispatch({ type: DELETE_PRODUCT_FAILURE, payload: error.message });
     throw error;

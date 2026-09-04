@@ -59,12 +59,12 @@
     @apply h-11 w-full rounded-xl border border-line bg-surface px-4 text-sm text-foreground shadow-sm transition placeholder:text-foreground-subtle focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20;
   }
 
+  /* Scrolls its own table sideways on narrow screens. The table inside sets
+     its own min-width; this element must keep `overflow-x-auto` at every
+     breakpoint or the columns collapse instead of scrolling on mobile. */
   .table-scroll {
-    @apply -mx-3 overflow-x-auto md:mx-0 md:overflow-visible;
-  }
-
-  .table-scroll > table {
-    @apply min-w-[640px] w-full md:min-w-0;
+    @apply w-full overflow-x-auto overscroll-x-contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Use <Button variant="primary|secondary" /> when possible; classes for edge cases */
@@ -94,9 +94,28 @@
     text-wrap: balance;
   }
 
+  /* Keeps a fixed bottom bar clear of the iOS home indicator / Android gesture
+     area. Used by the mobile cart checkout bar. */
+  .safe-area-pb {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   /* Back-compat: old token name used across JSX */
   .border-border {
     @apply border-line;
+  }
+}
+
+/* Used by <AppBootSplash /> via an inline animation so the pre-hydration
+   markup needs no JS. Uniquely prefixed because animate.css is imported
+   globally and owns many plain keyframe names. */
+@keyframes tw-boot-fade-in {
+  to {
+    opacity: 1;
   }
 }
 

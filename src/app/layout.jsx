@@ -19,6 +19,9 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#000000",
+  // Required for env(safe-area-inset-*) to report real values on notched
+  // phones — the fixed cart checkout bar relies on it via .safe-area-pb.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }) {

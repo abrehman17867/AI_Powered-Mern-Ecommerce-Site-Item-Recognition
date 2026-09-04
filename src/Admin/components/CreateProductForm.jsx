@@ -19,6 +19,7 @@ import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
 import LoadingState from "../../components/ui/LoadingState";
+import EmptyState from "../../components/ui/EmptyState";
 import { adminToast } from "../../utils/adminToast";
 import { classNames } from "../../utils/classNames";
 
@@ -82,7 +83,19 @@ const CreateProductForm = () => {
 
   const dispatch = useDispatch();
   const { categories: categoryList, loading: categoriesLoading } = useSelector((s) => s.categories);
-  const { product: loadedProduct, loading: productLoading } = useSelector((s) => s.products);
+  const {
+    product: loadedProduct,
+    loading: productLoading,
+    error: productError,
+  } = useSelector((s) => s.products);
+
+  // The products slice holds one product at a time, so on entering the edit
+  // screen it still contains whichever product was last viewed. Without this
+  // check the form hydrated from that stale product and latched
+  // `hydratedRef`, so the real product never populated the fields — and
+  // saving wrote the wrong product's values.
+  const loadedIsCurrent =
+    Boolean(loadedProduct?._id) && String(loadedProduct._id) === String(productId);
 
   const level1Categories = useMemo(
     () => (categoryList || []).filter((c) => c.level === 1),
@@ -133,7 +146,7 @@ const CreateProductForm = () => {
   }, [dispatch, productId]);
 
   useEffect(() => {
-    if (!isEdit || !loadedProduct?._id || !categoryList?.length || hydratedRef.current) return;
+    if (!isEdit || !loadedIsCurrent || !categoryList?.length || hydratedRef.current) return;
 
     const catRef = loadedProduct.category;
     const leafId = catRef?._id != null ? String(catRef._id) : String(catRef || "");
@@ -174,7 +187,7 @@ const CreateProductForm = () => {
     setDiscountManual(false);
     setSelectedImage({});
     hydratedRef.current = true;
-  }, [isEdit, loadedProduct, categoryList]);
+  }, [isEdit, loadedIsCurrent, loadedProduct, categoryList]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -349,7 +362,10 @@ const CreateProductForm = () => {
   };
 
   const previewSrc = selectImage?.url || loadedProduct?.imageUrl || "";
-  const pageBusy = categoriesLoading || (isEdit && productLoading && !loadedProduct?._id);
+  // Hold the form back until the *right* product is in the store. The error
+  // check keeps a failed fetch from spinning forever.
+  const pageBusy =
+    categoriesLoading || (isEdit && !loadedIsCurrent && (productLoading || !productError));
   const hasDiscount =
     Number(productData.discountedPersent) > 0 &&
     Number(productData.price) > Number(productData.discountedPrice);
@@ -362,8 +378,26 @@ const CreateProductForm = () => {
     );
   }
 
+  // A failed edit fetch must not fall through to a blank form — that looked
+  // like a "create" screen and would have written a fresh product's values.
+  if (isEdit && !loadedIsCurrent) {
+    return (
+      <div className="py-16">
+        <EmptyState
+          title="Could not load this product"
+          description={productError || "The product may have been removed."}
+          actionLabel="Back to products"
+          onAction={() => navigate("/admin/products")}
+        />
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="pb-24">
+    // The action bar below is fixed; on mobile it stacks to ~9rem tall, so the
+    // form needs at least that much bottom padding or the last field sits
+    // underneath it and cannot be reached.
+    <form onSubmit={handleSubmit} className="pb-48 sm:pb-28">
       <AdminPageHeader
         title={isEdit ? "Edit product" : "Add product"}
         subtitle="Create a listing that appears on the storefront with correct categories, pricing, and inventory."
@@ -702,23 +736,30 @@ const CreateProductForm = () => {
       </div>
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-white/95 px-5 py-4 backdrop-blur-md lg:left-[17.5rem]">
+      <div className="safe-area-pb fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-white/95 px-4 py-4 backdrop-blur-md sm:px-5 lg:left-[17.5rem]">
         <div className="admin-content-inner flex flex-col-reverse items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <p className="text-sm text-foreground-muted">
             {isEdit ? "Changes publish immediately to the storefront." : "All required fields must be completed."}
           </p>
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             <Button
               type="button"
               variant="secondary"
               size="lg"
-              className="min-w-[11.5rem]"
+              className="w-full sm:w-auto sm:min-w-[11.5rem]"
+              disabled={submitting}
               onClick={() => navigate("/admin/products")}
             >
               Cancel
             </Button>
-            <Button type="submit" size="lg" className="min-w-[11.5rem]" disabled={submitting}>
-              {submitting ? "Saving…" : isEdit ? "Update product" : "Publish product"}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full sm:w-auto sm:min-w-[11.5rem]"
+              loading={submitting}
+              loadingLabel="Saving…"
+            >
+              {isEdit ? "Update product" : "Publish product"}
             </Button>
           </div>
         </div>

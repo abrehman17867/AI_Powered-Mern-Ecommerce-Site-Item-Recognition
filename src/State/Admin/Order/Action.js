@@ -20,98 +20,82 @@ import {
   SHIP_ORDER_SUCCESS,
 } from "./ActionType";
 
-export const getOrders = () => {
-  return async (dispatch) => {
-    console.log("Get all orders");
-    dispatch({ type: GET_ORDERS_REQUEST });
-    try {
-      const response = await api.get(`/api/admin/orders/`);
-      console.log("Get all orders: ", response.data);
-      dispatch({ type: GET_ORDERS_SUCCESS, payload: response.data });
-    } catch (error) {
-      console.log("Catch error: ", error);
-      dispatch({ type: GET_ORDERS_FAILURE, payload: error.message });
-    }
-  };
+const errorMessage = (error) =>
+  error?.response?.data?.error ||
+  error?.response?.data?.message ||
+  error?.message ||
+  "Something went wrong.";
+
+export const getOrders = () => async (dispatch) => {
+  dispatch({ type: GET_ORDERS_REQUEST });
+  try {
+    const { data } = await api.get(`/api/admin/orders/`);
+    dispatch({ type: GET_ORDERS_SUCCESS, payload: data });
+    return data;
+  } catch (error) {
+    dispatch({ type: GET_ORDERS_FAILURE, payload: errorMessage(error) });
+    throw error;
+  }
 };
 
-export const confirmOrder = (orderId) => {
-  return async (dispatch) => {
-    dispatch({ type: CONFIRMED_ORDER_REQUEST });
+/**
+ * All four status transitions share one shape: the request carries the order id
+ * so the reducer can mark just that row busy, and the success carries the
+ * updated order so the row can be patched in place without a refetch.
+ */
+const statusAction =
+  ({ request, success, failure, path }) =>
+  (orderId) =>
+  async (dispatch) => {
+    dispatch({ type: request, payload: orderId });
     try {
-      const response = await api.put(`/api/admin/orders/${orderId}/confirmed`);
-      const data = response.data;
-      console.log("confirm_order: ", data);
-      dispatch({ type: CONFIRMED_ORDER_SUCCESS, payload: data });
+      const { data } = await api.put(`/api/admin/orders/${orderId}/${path}`);
+      dispatch({ type: success, payload: data });
       return data;
     } catch (error) {
-      console.log("Catch error: ", error);
-      dispatch({ type: CONFIRMED_ORDER_FAILURE, payload: error.message });
+      dispatch({ type: failure, payload: errorMessage(error) });
       throw error;
     }
   };
-};
 
-export const shipOrder = (orderId) => {
-  return async (dispatch) => {
-    dispatch({ type: SHIP_ORDER_REQUEST });
-    try {
-      const { data } = await api.put(`/api/admin/orders/${orderId}/ship`);
-      console.log("Shipped order: ", data);
-      dispatch({ type: SHIP_ORDER_SUCCESS, payload: data });
-      return data;
-    } catch (error) {
-      console.log("Catch error: ", error);
-      dispatch({ type: SHIP_ORDER_FAILURE, payload: error.message });
-      throw error;
-    }
-  };
-};
+export const confirmOrder = statusAction({
+  request: CONFIRMED_ORDER_REQUEST,
+  success: CONFIRMED_ORDER_SUCCESS,
+  failure: CONFIRMED_ORDER_FAILURE,
+  path: "confirmed",
+});
 
-export const deliveredOrder = (orderId) => {
-  return async (dispatch) => {
-    dispatch({ type: DELIVERED_ORDER_REQUEST });
-    try {
-      const response = await api.put(`/api/admin/orders/${orderId}/deliver`);
-      const data = response.data;
-      console.log("Deliver_order: ", data);
-      dispatch({ type: DELIVERED_ORDER_SUCCESS, payload: data });
-      return data;
-    } catch (error) {
-      console.log("Catch error: ", error);
-      dispatch({ type: DELIVERED_ORDER_FAILURE, payload: error.message });
-      throw error;
-    }
-  };
-};
+export const shipOrder = statusAction({
+  request: SHIP_ORDER_REQUEST,
+  success: SHIP_ORDER_SUCCESS,
+  failure: SHIP_ORDER_FAILURE,
+  path: "ship",
+});
 
-export const cancelOrder = (orderId) => {
-  return async (dispatch) => {
-    dispatch({ type: CANCELLED_ORDER_REQUEST });
-    try {
-      const response = await api.put(`/api/admin/orders/${orderId}/cancel`);
-      const data = response.data;
-      console.log("Cancel order: ", data);
-      dispatch({ type: CANCELLED_ORDER_SUCCESS, payload: data });
-    } catch (error) {
-      console.log("Catch error: ", error);
-      dispatch({ type: CANCELLED_ORDER_FAILURE, payload: error.message });
-    }
-  };
-};
+export const deliveredOrder = statusAction({
+  request: DELIVERED_ORDER_REQUEST,
+  success: DELIVERED_ORDER_SUCCESS,
+  failure: DELIVERED_ORDER_FAILURE,
+  path: "deliver",
+});
 
-export const deleteOrder = (orderId) => {
-  return async (dispatch) => {
-    dispatch({ type: DELETE_ORDER_REQUEST });
-    try {
-      const { data } = await api.put(`/api/admin/orders/${orderId}/delete`);
-      console.log("Delete order: ", data);
-      dispatch({ type: DELETE_ORDER_SUCCESS, payload: data });
-      return data;
-    } catch (error) {
-      console.log("Catch error: ", error);
-      dispatch({ type: DELETE_ORDER_FAILURE, payload: error.message });
-      throw error;
-    }
-  };
+export const cancelOrder = statusAction({
+  request: CANCELLED_ORDER_REQUEST,
+  success: CANCELLED_ORDER_SUCCESS,
+  failure: CANCELLED_ORDER_FAILURE,
+  path: "cancel",
+});
+
+export const deleteOrder = (orderId) => async (dispatch) => {
+  dispatch({ type: DELETE_ORDER_REQUEST, payload: orderId });
+  try {
+    await api.put(`/api/admin/orders/${orderId}/delete`);
+    // The endpoint replies 200 with an empty body, so the id has to come from
+    // here for the reducer to know which row to drop.
+    dispatch({ type: DELETE_ORDER_SUCCESS, payload: orderId });
+    return orderId;
+  } catch (error) {
+    dispatch({ type: DELETE_ORDER_FAILURE, payload: errorMessage(error) });
+    throw error;
+  }
 };

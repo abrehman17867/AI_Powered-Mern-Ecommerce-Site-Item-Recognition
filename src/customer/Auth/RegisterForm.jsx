@@ -154,8 +154,13 @@ function RegisterFormInner({ compact = false, onClose }) {
           />
         </div>
 
-        <Button type="submit" className="w-full !py-3" disabled={auth.isLoading}>
-          {auth.isLoading ? "Creating account…" : "Create account"}
+        <Button
+          type="submit"
+          className="w-full !py-3"
+          loading={auth.isLoading}
+          loadingLabel="Creating account…"
+        >
+          Create account
         </Button>
       </form>
     </AuthFormPanel>

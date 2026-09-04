@@ -34,6 +34,7 @@ import ProductQuickView from "./ProductQuickView";
 import ProductCompareDrawer from "./ProductCompareDrawer";
 import ProductWishlistDrawer from "./ProductWishlistDrawer";
 import { ProductImageSearchStatus } from "./ProductImageSearch";
+import InlineLoadingBar from "../../../../components/ui/InlineLoadingBar";
 import { searchProductsByImage } from "../apiService";
 
 const VIEW_KEY = "ecom_catalog_view";
@@ -266,8 +267,14 @@ export default function ProductsCatalog({ mode = "category" }) {
   const showBlockingSpinner =
     (products?.loading && !(catalogData?.content?.length > 0) && !hasTextSearch && !hasImageSearch) ||
     (imageSearch.busy && !imageSearch.results.length);
+  // `refreshing` is the store's "results are stale but still worth showing"
+  // flag. The old check read `loading`, which the silent-refetch path
+  // deliberately leaves false — so paging and filtering used to refetch with
+  // no indication at all that anything was happening.
   const isRefetching =
-    products?.loading && catalogData?.content?.length > 0 && !hasImageSearch;
+    !showBlockingSpinner &&
+    ((products?.refreshing && !hasImageSearch && !hasTextSearch) ||
+      (searchLoading && listProducts.length > 0));
 
   const brandList = useMemo(() => {
     const fromList = (listProducts || []).map((p) => p.brand);
@@ -533,15 +540,11 @@ export default function ProductsCatalog({ mode = "category" }) {
         </aside>
 
         <div className="min-w-0 flex-1">
-          {isRefetching && (
-            <div
-              className="mb-4 h-1 overflow-hidden rounded-full bg-zinc-100"
-              role="status"
-              aria-label="Loading products"
-            >
-              <div className="h-full w-1/3 animate-pulse rounded-full bg-brand-500" />
-            </div>
-          )}
+          <InlineLoadingBar
+            active={isRefetching}
+            label="Refreshing products"
+            className="mb-4 rounded-full bg-zinc-100"
+          />
           <ProductGrid
             products={listProducts}
             loading={showBlockingSpinner || searchLoading || imageSearch.busy}
@@ -575,10 +578,15 @@ export default function ProductsCatalog({ mode = "category" }) {
         </div>
       </div>
 
+      {/* z-[60] matches the nav's own mobile menu and clears the fixed navbar,
+          which sits at z-50. At z-40 the navbar painted over the top of this
+          panel, hiding its "Filters" heading and close button — they stayed
+          clickable only because the navbar is pointer-events-none, so the
+          controls were invisible but still live. */}
       <Transition show={mobileFiltersOpen}>
         <Dialog
           as="div"
-          className="relative z-40 lg:hidden"
+          className="relative z-[60] lg:hidden"
           onClose={setMobileFiltersOpen}
         >
           <Transition.Child

@@ -125,9 +125,16 @@ module.exports = {
         "tw-pulse": {
           "50%": { opacity: "0.5" },
         },
+        // Indeterminate progress sweep for <InlineLoadingBar />. Prefixed for
+        // the same reason as tw-pulse: animate.css owns several plain names.
+        "tw-loading-slide": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(400%)" },
+        },
       },
       animation: {
         pulse: "tw-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "loading-slide": "tw-loading-slide 1.1s ease-in-out infinite",
       },
     },
   },

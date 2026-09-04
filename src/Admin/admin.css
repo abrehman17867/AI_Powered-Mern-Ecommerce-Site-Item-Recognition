@@ -4,8 +4,13 @@
   @apply min-h-screen bg-[#f4f4f5] text-foreground antialiased;
 }
 
+/* Deliberately sets no `display`. This file is imported from Admin.jsx, so it
+   is injected after globals.css — baking `flex` in here beat the `hidden`
+   utility on the element (same specificity, later source order) and the desktop
+   sidebar rendered at every width, covering the left 280px of every admin page
+   on phones and tablets. Display belongs to the `hidden lg:flex` classes. */
 .admin-sidebar {
-  @apply fixed inset-y-0 left-0 z-40 flex w-[17.5rem] flex-col border-r border-zinc-800/80 bg-zinc-950 text-zinc-300;
+  @apply fixed inset-y-0 left-0 z-40 w-[17.5rem] flex-col border-r border-zinc-800/80 bg-zinc-950 text-zinc-300;
 }
 
 .admin-sidebar-brand {
@@ -61,6 +66,8 @@
   @apply admin-surface p-6 transition hover:border-zinc-200 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)];
 }
 
+/* Same reasoning: `lg:hidden` moved onto the element so the drawer's visibility
+   is not decided by stylesheet injection order. */
 .admin-drawer {
-  @apply fixed inset-y-0 left-0 z-50 w-[min(18rem,88vw)] border-r border-zinc-800 bg-zinc-950 text-zinc-300 shadow-2xl lg:hidden;
+  @apply fixed inset-y-0 left-0 z-50 w-[min(18rem,88vw)] border-r border-zinc-800 bg-zinc-950 text-zinc-300 shadow-2xl;
 }
