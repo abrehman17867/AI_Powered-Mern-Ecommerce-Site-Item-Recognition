@@ -13,6 +13,8 @@ import {
 } from "@heroicons/react/24/outline";
 import AddressCard from "../AddressCard/AddressCard";
 import OrderTracker from "./OrderTracker";
+import OrderTimeline from "./OrderTimeline";
+import TrackingNumber from "./TrackingNumber";
 import OrderDetailLineItem from "./OrderDetailLineItem";
 import { OrderStatusBadge, PaymentStatusBadge } from "./OrderStatusBadge";
 import { useDispatch, useSelector } from "react-redux";
@@ -180,9 +182,34 @@ const OrderDetails = () => {
       }
       className="pb-10"
     >
+      {selectedOrder?.trackingNumber ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+              Tracking number
+            </p>
+            <TrackingNumber value={selectedOrder.trackingNumber} className="mt-2" />
+          </div>
+          <Link
+            to={`/track?code=${encodeURIComponent(selectedOrder.trackingNumber)}`}
+            className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-600 transition hover:text-brand-700"
+          >
+            Open tracking page
+          </Link>
+        </div>
+      ) : null}
+
       <div className="mb-8">
         <OrderTracker activeStep={trackerStep} cancelled={cancelled} />
       </div>
+
+      {/* Dated history sits alongside the compact horizontal tracker: the
+          tracker shows where the order is, this shows when it got there. */}
+      {(selectedOrder?.statusHistory || []).length > 0 && !cancelled ? (
+        <div className="mb-8">
+          <OrderTimeline order={selectedOrder} />
+        </div>
+      ) : null}
 
       <div className="grid gap-8 xl:grid-cols-[1fr_min(20rem)] xl:items-start">
         <div className="space-y-6">

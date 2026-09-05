@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const cartService = require("../services/cart.service");
 const Address = require("../models/address.model");
 const Order = require("../models/order.model");
@@ -132,12 +133,62 @@ async function createOrder(user, shippingAddress) {
           orderStatus: "PENDING",
       });
 
+      createdOrder.trackingNumber = await generateTrackingNumber();
+      appendStatus(createdOrder, "PENDING", "Order placed");
+
       const savedOrder = await createdOrder.save();
       await cartService.clearUserCart(user._id);
       return savedOrder;
   } catch (error) {
       throw new Error(`Error creating order: ${error.message}`);
   }
+}
+
+
+// Tracking references are quoted over the phone and typed by hand, so the
+// alphabet omits the characters people confuse: I/1, O/0, S/5, B/8.
+const TRACKING_ALPHABET = "ACDEFGHJKLMNPQRTUVWXYZ234679";
+
+function randomTrackingNumber() {
+  let body = "";
+  for (let i = 0; i < 9; i += 1) {
+    body += TRACKING_ALPHABET[crypto.randomInt(0, TRACKING_ALPHABET.length)];
+  }
+  return `EC-${body.slice(0, 3)}-${body.slice(3, 6)}-${body.slice(6, 9)}`;
+}
+
+/**
+ * Allocate a tracking number that is not already taken.
+ *
+ * The field carries a unique index, so a collision would surface as a write
+ * error; retrying a handful of times is cheaper than locking.
+ */
+async function generateTrackingNumber() {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const candidate = randomTrackingNumber();
+    const clash = await Order.exists({ trackingNumber: candidate });
+    if (!clash) return candidate;
+  }
+  throw new Error("Could not allocate a tracking number");
+}
+
+/**
+ * Record a status transition, keeping the history append-only and free of
+ * consecutive duplicates.
+ */
+function appendStatus(order, status, note) {
+  const history = order.statusHistory || [];
+  const last = history[history.length - 1];
+  if (last && last.status === status) return;
+  history.push({ status, at: new Date(), note });
+  order.statusHistory = history;
+}
+
+/** Backfills a tracking number for orders placed before the field existed. */
+async function ensureTrackingNumber(order) {
+  if (order.trackingNumber) return order.trackingNumber;
+  order.trackingNumber = await generateTrackingNumber();
+  return order.trackingNumber;
 }
 
 // Product images are stored as base64 data URIs on the document, so every
@@ -209,6 +260,8 @@ async function placeOrder(orderId) {
 async function confirmedOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "CONFIRMED";
+  await ensureTrackingNumber(order);
+  appendStatus(order, "CONFIRMED", "Order confirmed");
 
   return serializeOrder(await order.save());
 }
@@ -216,6 +269,8 @@ async function confirmedOrder(orderId) {
 async function shipOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "SHIPPED";
+  await ensureTrackingNumber(order);
+  appendStatus(order, "SHIPPED", "Shipped");
 
   return serializeOrder(await order.save());
 }
@@ -223,6 +278,8 @@ async function shipOrder(orderId) {
 async function deliverOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "DELIVERED";
+  await ensureTrackingNumber(order);
+  appendStatus(order, "DELIVERED", "Delivered");
 
   return serializeOrder(await order.save());
 }
@@ -230,6 +287,8 @@ async function deliverOrder(orderId) {
 async function cancelledOrder(orderId) {
   const order = await findOrderById(orderId);
   order.orderStatus = "CANCELLED";
+  await ensureTrackingNumber(order);
+  appendStatus(order, "CANCELLED", "Order cancelled");
 
   return serializeOrder(await order.save());
 }
@@ -267,6 +326,9 @@ async function deleteOrder(orderId) {
 
 module.exports = {
   createOrder,
+  generateTrackingNumber,
+  ensureTrackingNumber,
+  appendStatus,
   placeOrder,
   confirmedOrder,
   shipOrder,

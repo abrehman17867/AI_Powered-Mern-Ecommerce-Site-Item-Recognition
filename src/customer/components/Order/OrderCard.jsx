@@ -45,9 +45,11 @@ export default function OrderCard({ order }) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-muted/40 px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-3">
           <div>
-            <p className="text-xs font-medium text-foreground-muted">Order</p>
+            <p className="text-xs font-medium text-foreground-muted">
+              {order?.trackingNumber ? "Tracking" : "Order"}
+            </p>
             <p className="font-mono text-sm font-bold text-foreground">
-              {shortOrderId(order?._id)}
+              {order?.trackingNumber || shortOrderId(order?._id)}
             </p>
           </div>
           <span className="hidden h-8 w-px bg-line sm:block" aria-hidden />

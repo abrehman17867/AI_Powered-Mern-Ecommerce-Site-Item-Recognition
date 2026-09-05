@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "@/lib/navigation";
 import { useDispatch } from "react-redux";
 import { api } from "../../../config/apiConfig";
+import TrackingNumber from "../../components/Order/TrackingNumber";
+import OrderTimeline from "../../components/Order/OrderTimeline";
 import { getCart } from "../../../State/Cart/Action";
 import { getOrderHistory } from "../../../State/Order/Action";
 import {
@@ -44,6 +46,9 @@ const PaymentSuccessPage = () => {
   const orderId = searchParams.get("order_id");
   const shortRef = sessionId ? sessionId.slice(-12).toUpperCase() : null;
   const [confirming, setConfirming] = useState(Boolean(sessionId && orderId));
+  // The confirm call returns the reference; the full order gives the timeline.
+  const [tracking, setTracking] = useState(null);
+  const [order, setOrder] = useState(null);
 
   useEffect(() => {
     if (!sessionId || !orderId || !localStorage.getItem("jwt")) return;
@@ -51,10 +56,17 @@ const PaymentSuccessPage = () => {
     let cancelled = false;
     (async () => {
       try {
-        await api.post("/api/payments/confirm-session", { sessionId, orderId });
+        const { data } = await api.post("/api/payments/confirm-session", { sessionId, orderId });
         if (!cancelled) {
+          setTracking(data?.trackingNumber || null);
           await dispatch(getCart({ silent: true }));
           await dispatch(getOrderHistory({ silent: true }));
+          try {
+            const { data: full } = await api.get(`/api/orders/${orderId}`);
+            if (!cancelled) setOrder(full);
+          } catch {
+            /* timeline is a bonus here; the reference above is the important bit */
+          }
         }
       } catch (e) {
         console.error("Payment confirm:", e);
@@ -88,18 +100,36 @@ const PaymentSuccessPage = () => {
                 ? "Confirming your payment…"
                 : "Your payment was successful. We're getting everything ready for you."}
             </p>
-            {shortRef ? (
-              <div className="mt-6 inline-flex flex-col items-center rounded-2xl border border-line bg-white/80 px-5 py-3 shadow-sm backdrop-blur-sm">
-                <span className="text-xs font-medium text-foreground-muted">Payment reference</span>
-                <span className="mt-0.5 font-mono text-sm font-semibold text-foreground">
-                  {shortRef}
+            {tracking ? (
+              <div className="mt-6 inline-flex flex-col items-center rounded-2xl border border-brand-200 bg-white/90 px-5 py-4 shadow-sm backdrop-blur-sm">
+                <span className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+                  Your tracking number
+                </span>
+                <TrackingNumber value={tracking} size="lg" className="mt-2 border-0 bg-transparent px-0" />
+                <span className="mt-1 text-xs text-foreground-muted">
+                  Keep this to check your delivery any time
                 </span>
               </div>
+            ) : null}
+            {shortRef ? (
+              <p className="mt-4 text-xs text-foreground-subtle">
+                Payment reference <span className="font-mono">{shortRef}</span>
+              </p>
             ) : null}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button size="lg" className="!px-8" onClick={() => navigate("/account/order")}>
                 View my orders
               </Button>
+              {tracking ? (
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="!px-8"
+                  onClick={() => navigate(`/track?code=${encodeURIComponent(tracking)}`)}
+                >
+                  Track this order
+                </Button>
+              ) : null}
               <Button
                 size="lg"
                 variant="secondary"
@@ -112,6 +142,14 @@ const PaymentSuccessPage = () => {
           </div>
         </div>
       </section>
+
+      {order ? (
+        <section className="app-container pt-10">
+          <div className="mx-auto max-w-2xl">
+            <OrderTimeline order={order} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="app-container py-12 md:py-16">
         <div className="mb-8 text-center">

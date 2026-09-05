@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/expressAdapter";
 import authenticate from "@/server/middleware/authenticate";
 import Order from "@/server/models/order.model";
 import cartService from "@/server/services/cart.service";
+import orderService from "@/server/services/order.service";
 import Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -31,6 +32,11 @@ async function confirmSession(req, res) {
       order.paymentDetails.paymentMethod = "STRIPE";
       order.paymentDetails.transactionId = session.payment_intent || session.id;
       order.orderStatus = "CONFIRMED";
+      // Orders placed before tracking existed get a reference here, so the
+      // success screen always has one to show.
+      await orderService.ensureTrackingNumber(order);
+      orderService.appendStatus(order, "PAID", "Payment received");
+      orderService.appendStatus(order, "CONFIRMED", "Order confirmed");
       await order.save();
       await cartService.clearUserCart(req.user._id);
     }
@@ -39,6 +45,8 @@ async function confirmSession(req, res) {
       ok: true,
       paymentStatus: session.payment_status,
       orderId: order._id,
+      trackingNumber: order.trackingNumber || null,
+      orderStatus: order.orderStatus,
     });
   } catch (error) {
     console.error("Error confirming payment session:", error);

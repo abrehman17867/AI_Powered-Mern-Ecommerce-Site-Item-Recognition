@@ -54,6 +54,25 @@ const orderSchema = new Schema({
     required: true,
     default: "PENDING",
   },
+  // Human-quotable reference the shopper can use to look the order up.
+  // `sparse` so the unique index ignores pre-existing orders that have none.
+  trackingNumber: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true,
+  },
+  // Append-only record of how the order moved. Gives the tracker real dates
+  // rather than a bare "which step are we on" guess derived from the current
+  // status alone.
+  statusHistory: [
+    {
+      status: { type: String },
+      at: { type: Date, default: Date.now },
+      note: { type: String },
+      _id: false,
+    },
+  ],
   totalItem: {
     type: Number,
     required: true,
