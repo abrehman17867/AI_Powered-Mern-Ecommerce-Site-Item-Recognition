@@ -1,10 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Link } from "@/lib/navigation";
 import { useDispatch } from "react-redux";
 import { MinusIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { removeCartItem, updateCartItem } from "../../../State/Cart/Action";
+import {
+  removeCartItem,
+  setCartItemQuantityOptimistic,
+  updateCartItem,
+} from "../../../State/Cart/Action";
 import { classNames } from "../../../utils/classNames";
 import {
   unitDiscountedPrice,
@@ -20,7 +24,11 @@ const formatMoney = (value) =>
     maximumFractionDigits: 2,
   }).format(Number(value) || 0);
 
-export default function CartItem({ item, isUpdating = false }) {
+// Long enough to fold a burst of taps into one request, short enough that the
+// cart feels settled by the time you look at the total.
+const QUANTITY_SYNC_MS = 500;
+
+export default function CartItem({ item, isUpdating = false, isRemoving = false }) {
   const dispatch = useDispatch();
   const productId = item?.product?._id;
   const qty = Number(item?.quantity) || 1;
@@ -30,10 +38,37 @@ export default function CartItem({ item, isUpdating = false }) {
   const discountPct = item?.product?.discountedPersent;
   const hasDiscount = unitOrig > unit;
 
+  // Each tap used to fire its own request and freeze the row until two round
+  // trips had completed, so holding + felt broken. The number now moves
+  // immediately and only the settled value is sent.
+  const syncTimer = useRef(null);
+  const pendingQty = useRef(null);
+
+  const flush = useCallback(() => {
+    if (syncTimer.current) {
+      clearTimeout(syncTimer.current);
+      syncTimer.current = null;
+    }
+    const qty = pendingQty.current;
+    pendingQty.current = null;
+    if (qty != null) {
+      dispatch(updateCartItem({ cartItemId: item._id, data: { quantity: qty } }));
+    }
+  }, [dispatch, item._id]);
+
+  // Do not strand an un-sent quantity if the row unmounts mid-edit.
+  useEffect(() => flush, [flush]);
+
   const changeQty = (delta) => {
-    const next = (item?.quantity || 1) + delta;
+    const current = pendingQty.current ?? Number(item?.quantity) ?? 1;
+    const next = current + delta;
     if (next < 1) return;
-    dispatch(updateCartItem({ cartItemId: item._id, data: { quantity: next } }));
+
+    pendingQty.current = next;
+    dispatch(setCartItemQuantityOptimistic(item._id, next));
+
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(flush, QUANTITY_SYNC_MS);
   };
 
   const handleRemove = () => {
@@ -44,10 +79,10 @@ export default function CartItem({ item, isUpdating = false }) {
     <article
       className={classNames(
         "relative grid gap-4 border-b border-line px-4 py-5 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_6rem_8rem_6rem_2rem] sm:items-center sm:gap-6 sm:px-6",
-        isUpdating && "pointer-events-none opacity-60"
+        isRemoving && "pointer-events-none opacity-60"
       )}
     >
-      {isUpdating ? (
+      {isRemoving ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
           <div
             className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"
@@ -110,7 +145,7 @@ export default function CartItem({ item, isUpdating = false }) {
             <button
               type="button"
               onClick={() => changeQty(-1)}
-              disabled={isUpdating || item.quantity <= 1}
+              disabled={isRemoving || qty <= 1}
               className="flex h-9 w-9 items-center justify-center rounded-l-xl text-foreground-muted transition hover:bg-white hover:text-foreground disabled:opacity-40"
               aria-label="Decrease quantity"
             >
@@ -122,7 +157,7 @@ export default function CartItem({ item, isUpdating = false }) {
             <button
               type="button"
               onClick={() => changeQty(1)}
-              disabled={isUpdating}
+              disabled={isRemoving}
               className="flex h-9 w-9 items-center justify-center rounded-r-xl text-foreground-muted transition hover:bg-white hover:text-brand-600 disabled:opacity-40"
               aria-label="Increase quantity"
             >
@@ -133,13 +168,20 @@ export default function CartItem({ item, isUpdating = false }) {
 
         <div className="hidden text-right sm:block">
           <p className="text-xs text-foreground-muted sm:sr-only">Total</p>
-          <p className="text-base font-bold tabular-nums text-foreground">{formatMoney(line)}</p>
+          <p
+            className={classNames(
+              "text-base font-bold tabular-nums transition-colors",
+              isUpdating ? "text-foreground-muted" : "text-foreground"
+            )}
+          >
+            {formatMoney(line)}
+          </p>
         </div>
 
         <button
           type="button"
           onClick={handleRemove}
-          disabled={isUpdating}
+          disabled={isRemoving}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground-muted transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 sm:justify-self-end"
           aria-label="Remove item"
         >

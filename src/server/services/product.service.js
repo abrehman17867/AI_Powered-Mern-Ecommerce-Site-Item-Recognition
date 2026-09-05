@@ -573,7 +573,32 @@ async function searchProductsByImage(imagePath, req) {
   }
 }
 
+
+/**
+ * Distinct facet values across the whole catalog.
+ *
+ * The filter sidebar used to build its brand list from whatever products the
+ * current page happened to contain, so it changed as you paged and never
+ * showed brands that were filtered out. Colours were a hard-coded list that
+ * had no relation to the catalog at all.
+ */
+async function getCatalogFacets() {
+  const [brands, colors, sizes] = await Promise.all([
+    Product.distinct("brand"),
+    Product.distinct("color"),
+    Product.distinct("sizes.name"),
+  ]);
+
+  const clean = (list) =>
+    [...new Set((list || []).map((v) => String(v || "").trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+  return { brands: clean(brands), colors: clean(colors), sizes: clean(sizes) };
+}
+
 module.exports = {
+  getCatalogFacets,
   createProduct,
   deleteProduct,
   updateProduct,

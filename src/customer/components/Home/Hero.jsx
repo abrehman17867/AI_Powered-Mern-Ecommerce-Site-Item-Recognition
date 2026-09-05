@@ -63,10 +63,14 @@ export const Hero = () => {
               Browse premium picks, search by photo, and checkout in minutes.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Both CTAs share one width and height: stacked full-width on
+                phones, equal-basis side by side from sm up. They previously
+                carried different padding, so the stacked buttons came out
+                visibly different sizes. */}
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
               <ButtonPrimary
                 type="button"
-                className="!px-8 !py-3"
+                className="w-full justify-center !px-8 !py-3 sm:w-auto"
                 onClick={() => navigate("/products")}
               >
                 Shop collection
@@ -75,7 +79,7 @@ export const Hero = () => {
                 type="button"
                 variant="secondary"
                 size="lg"
-                className="border-white/25 bg-white/10 !text-white hover:border-orange-300/50"
+                className="w-full justify-center border-white/25 bg-white/10 !px-8 !py-3 !text-white hover:border-orange-300/50 sm:w-auto"
                 onClick={() => navigate("/products")}
               >
                 <CameraIcon className="h-5 w-5" aria-hidden />
@@ -85,15 +89,15 @@ export const Hero = () => {
 
             <dl className="mt-10 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
               <div>
-                <dt className="text-xs uppercase tracking-wide text-zinc-500">Delivery</dt>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-orange-300/90">Delivery</dt>
                 <dd className="mt-1 text-sm font-semibold text-white">Free over $50</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-zinc-500">Returns</dt>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-orange-300/90">Returns</dt>
                 <dd className="mt-1 text-sm font-semibold text-white">30-day easy</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-zinc-500">Search</dt>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-orange-300/90">Search</dt>
                 <dd className="mt-1 text-sm font-semibold text-white">Photo + text</dd>
               </div>
             </dl>

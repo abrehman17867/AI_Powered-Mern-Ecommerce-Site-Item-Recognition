@@ -16,6 +16,7 @@ export default function ProductGrid({
   onCompare,
   onQuickView,
   onAddToCart,
+  addingProductId,
   error,
   emptyTitle,
   emptyDescription,
@@ -60,6 +61,7 @@ export default function ProductGrid({
               onCompare={onCompare}
               onQuickView={onQuickView}
               onAddToCart={onAddToCart}
+              adding={String(addingProductId) === String(product._id)}
             />
           </li>
         ))}
@@ -73,7 +75,7 @@ export default function ProductGrid({
       role="list"
     >
       {products.map((product) => (
-        <div key={product._id} role="listitem">
+        <div key={product._id} role="listitem" className="h-full">
           <CatalogProductCard
             product={product}
             view="grid"
@@ -84,6 +86,7 @@ export default function ProductGrid({
             onCompare={onCompare}
             onQuickView={onQuickView}
             onAddToCart={onAddToCart}
+            adding={String(addingProductId) === String(product._id)}
           />
         </div>
       ))}

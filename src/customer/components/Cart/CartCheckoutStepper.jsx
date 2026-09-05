@@ -14,17 +14,28 @@ export default function CartCheckoutStepper({ active = "cart" }) {
 
   return (
     <nav aria-label="Checkout progress" className="mb-8">
+      {/* Every step gets an equal share of the row and the connectors share a
+          second, equal basis, so the three stages are evenly spaced instead of
+          bunching around whichever label happens to be longest. The last step
+          does not stretch, so nothing trails off the right edge. */}
       <ol className="flex items-center gap-1 sm:gap-3">
         {STEPS.map((step, index) => {
           const isComplete = index < activeIndex;
           const isCurrent = index === activeIndex;
+          const isLast = index === STEPS.length - 1;
           return (
-            <li key={step.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
+            <li
+              key={step.id}
+              className={classNames(
+                "flex min-w-0 items-center gap-1 sm:gap-3",
+                isLast ? "flex-none" : "flex-1"
+              )}
+            >
               {/* The label stacks under the dot on phones and sits beside it from
                   sm up. It used to be `hidden sm:block`, which left mobile with
                   three bare numbered circles and no way to tell what the steps
                   were. Only the longer description is dropped on small screens. */}
-              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center sm:flex-row sm:items-center sm:gap-3 sm:text-left">
+              <div className="flex min-w-0 shrink-0 flex-col items-center gap-1.5 text-center sm:flex-row sm:items-center sm:gap-3 sm:text-left">
                 <span
                   className={classNames(
                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold sm:h-9 sm:w-9 sm:text-sm",

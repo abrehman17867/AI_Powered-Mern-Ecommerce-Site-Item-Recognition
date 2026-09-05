@@ -6,7 +6,6 @@ import {
   HeartIcon,
   EyeIcon,
   ArrowsRightLeftIcon,
-  ShoppingBagIcon,
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { classNames } from "../../../../utils/classNames";
@@ -43,6 +42,7 @@ export default function CatalogProductCard({
   onCompare,
   onQuickView,
   onAddToCart,
+  adding = false,
 }) {
   const navigate = useNavigate();
   const [imgHover, setImgHover] = useState(false);
@@ -197,10 +197,11 @@ export default function CatalogProductCard({
           {inStock ? "In stock" : "Out of stock"}
         </p>
         {view === "list" && (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex gap-2">
             <Button
               size="sm"
               variant="secondary"
+              className="min-w-0 flex-1 justify-center"
               onClick={(e) => {
                 e.preventDefault();
                 onQuickView?.(product);
@@ -210,13 +211,15 @@ export default function CatalogProductCard({
             </Button>
             <Button
               size="sm"
+              className="min-w-0 flex-1 justify-center"
               disabled={!inStock}
+              loading={adding}
+              loadingLabel="Adding…"
               onClick={(e) => {
                 e.preventDefault();
                 onAddToCart?.(product);
               }}
             >
-              <ShoppingBagIcon className="mr-1.5 h-4 w-4" />
               Add to cart
             </Button>
           </div>
@@ -238,9 +241,11 @@ export default function CatalogProductCard({
       {cardInner}
       <div className="mt-auto space-y-2 px-4 pb-4 pt-3">
         <Button
-          className="w-full"
+          className="w-full justify-center"
           size="sm"
           disabled={!inStock}
+          loading={adding}
+          loadingLabel="Adding…"
           onClick={() => onAddToCart?.(product)}
         >
           Add to cart
@@ -248,7 +253,7 @@ export default function CatalogProductCard({
         <Button
           variant="secondary"
           size="sm"
-          className="w-full"
+          className="w-full justify-center"
           type="button"
           onClick={() => navigate(`/product/${product?._id}`)}
         >

@@ -436,6 +436,7 @@ export default function Navigation() {
                 {auth.user?._id ? (
                   <UserAccountMobileLinks
                     user={auth.user}
+                    onClose={() => setOpen(false)}
                     onNavigate={(path) => {
                       setOpen(false);
                       navigate(path);
@@ -456,7 +457,7 @@ export default function Navigation() {
                           handleOpen();
                         }}
                       >
-                        Sign in
+                        Get started
                       </button>
                     </div>
                     <div className="flow-root">
@@ -794,7 +795,7 @@ export default function Navigation() {
                 />
               ) : (
                 <ButtonPrimary type="button" onClick={handleOpen}>
-                  Sign in
+                  Get started
                 </ButtonPrimary>
               )}
             </div>

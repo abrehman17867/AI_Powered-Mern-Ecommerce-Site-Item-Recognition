@@ -10,7 +10,7 @@ const LoadingState = ({ label = "Loading…", className, minHeight = "min-h-[40v
     role="status"
     aria-live="polite"
   >
-    <Spinner />
+    <Spinner size="lg" />
     {label ? <p className="text-sm text-foreground-muted">{label}</p> : null}
   </div>
 );

@@ -94,6 +94,11 @@ export default function ProductsCatalog({ mode = "category" }) {
     matchMethod: null,
   });
 
+  // Catalog-wide facet values. Derived from the whole collection, not the
+  // page currently on screen, so the brand and colour lists stay stable while
+  // paging and reflect everything the store actually sells.
+  const [facets, setFacets] = useState({ brands: [], colors: [], sizes: [] });
+
   const [draft, setDraft] = useState(() => filtersToDraft(filters));
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
@@ -123,6 +128,27 @@ export default function ProductsCatalog({ mode = "category" }) {
   useEffect(() => {
     dispatch(getAllCategories());
   }, [dispatch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get("/api/products/facets")
+      .then(({ data }) => {
+        if (!cancelled) {
+          setFacets({
+            brands: data?.brands || [],
+            colors: data?.colors || [],
+            sizes: data?.sizes || [],
+          });
+        }
+      })
+      .catch(() => {
+        /* sidebar falls back to whatever the current page yields */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const categorySlug = params.lavelThree;
 
@@ -277,9 +303,12 @@ export default function ProductsCatalog({ mode = "category" }) {
       (searchLoading && listProducts.length > 0));
 
   const brandList = useMemo(() => {
+    if (facets.brands.length) return facets.brands;
+    // Facets not loaded yet (or the request failed) — fall back to the brands
+    // present in the current result set so the section is never empty.
     const fromList = (listProducts || []).map((p) => p.brand);
     return [...new Set(fromList.filter(Boolean))];
-  }, [listProducts]);
+  }, [facets.brands, listProducts]);
 
   const topCategories = useMemo(() => {
     const list = categoryState?.categories || [];
@@ -408,6 +437,7 @@ export default function ProductsCatalog({ mode = "category" }) {
   };
 
   const addingItem = useSelector((store) => store.cart.addingItem);
+  const addingProductId = useSelector((store) => store.cart.addingProductId);
 
   const handleAddToCart = async (product, opts = {}) => {
     if (addingItem) return false;
@@ -528,6 +558,7 @@ export default function ProductsCatalog({ mode = "category" }) {
               draft={draft}
               setDraft={setDraft}
               brands={brandList}
+              colors={facets.colors}
               categories={topCategories.map((c) => ({
                 id: c._id,
                 name: c.name,
@@ -556,6 +587,7 @@ export default function ProductsCatalog({ mode = "category" }) {
             onCompare={handleCompare}
             onQuickView={setQuickViewProduct}
             onAddToCart={handleAddToCart}
+            addingProductId={addingProductId}
             error={products?.error}
             emptyTitle={
               mode === "category" && leafCategoryLabel && !filters.q && !hasImageSearch
@@ -625,6 +657,7 @@ export default function ProductsCatalog({ mode = "category" }) {
                     draft={draft}
                     setDraft={setDraft}
                     brands={brandList}
+                    colors={facets.colors}
                     categories={topCategories.map((c) => ({
                       id: c._id,
                       name: c.name,

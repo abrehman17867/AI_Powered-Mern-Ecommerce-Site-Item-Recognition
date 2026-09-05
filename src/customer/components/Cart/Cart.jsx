@@ -36,7 +36,9 @@ const TRUST = [
 export default function Cart() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { cart, loading, updatingItemId, error } = useSelector((store) => store.cart);
+  const { cart, loading, pendingItemIds, removingItemId, error } = useSelector(
+    (store) => store.cart
+  );
 
   const items = useMemo(() => cart?.cartItems || [], [cart?.cartItems]);
   const itemCount = useMemo(
@@ -129,7 +131,8 @@ export default function Cart() {
               <CartItem
                 key={item._id}
                 item={item}
-                isUpdating={updatingItemId === item._id}
+                isUpdating={pendingItemIds.includes(item._id)}
+                isRemoving={removingItemId === item._id}
               />
             ))}
           </div>
@@ -176,7 +179,7 @@ export default function Cart() {
                 <Button
                   className="w-full !py-3"
                   onClick={handleCheckout}
-                  disabled={Boolean(updatingItemId)}
+                  disabled={Boolean(removingItemId)}
                 >
                   Proceed to checkout
                 </Button>
@@ -214,7 +217,7 @@ export default function Cart() {
             <Button
               className="min-w-[10rem] !py-2.5"
               onClick={handleCheckout}
-              disabled={Boolean(updatingItemId)}
+              disabled={Boolean(removingItemId)}
             >
               Checkout
             </Button>

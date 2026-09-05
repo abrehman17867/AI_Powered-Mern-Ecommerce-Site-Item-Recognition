@@ -29,11 +29,22 @@ function FilterSection({ title, children, defaultOpen = true }) {
   );
 }
 
+// Named CSS colours cover most catalog values; COLOR_SWATCHES supplies the
+// tuned hexes for the ones we ship, and anything unrecognised still gets a
+// swatch via the browser's own colour parsing.
+const SWATCH_HEX = new Map(COLOR_SWATCHES.map((c) => [c.value.toLowerCase(), c.hex]));
+
+function swatchColor(name) {
+  const key = String(name || "").toLowerCase().trim();
+  return SWATCH_HEX.get(key) || key.replace(/\s+/g, "");
+}
+
 export default function ProductFilters({
   filters,
   draft,
   setDraft,
   brands,
+  colors,
   categories,
   onApply,
   onClear,
@@ -55,6 +66,18 @@ export default function ProductFilters({
     return [...set].sort();
   }, [brands]);
 
+  // Colours the catalog actually stocks. Falls back to the static swatch list
+  // only while the facet request is still in flight.
+  const colorOptions = useMemo(() => {
+    const live = (colors || []).filter(Boolean);
+    if (!live.length) return COLOR_SWATCHES;
+    return live.map((name) => ({
+      value: String(name).toLowerCase(),
+      label: String(name),
+      hex: swatchColor(name),
+    }));
+  }, [colors]);
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto px-1">
@@ -63,7 +86,7 @@ export default function ProductFilters({
             <ul className="space-y-2">
               {categories.map((cat) => (
                 <li key={cat.id || cat._id || cat.name}>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <label className="-mx-1 flex min-h-[2.75rem] cursor-pointer items-center gap-2.5 rounded-lg px-1 text-sm transition-colors hover:bg-surface-muted sm:min-h-0 sm:py-1">
                     <input
                       type="radio"
                       name="category"
@@ -85,7 +108,7 @@ export default function ProductFilters({
           <ul className="space-y-2">
             {PRICE_PRESETS.map((opt) => (
               <li key={opt.value}>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <label className="-mx-1 flex min-h-[2.75rem] cursor-pointer items-center gap-2.5 rounded-lg px-1 text-sm transition-colors hover:bg-surface-muted sm:min-h-0 sm:py-1">
                   <input
                     type="radio"
                     name="price"
@@ -133,7 +156,7 @@ export default function ProductFilters({
             )}
             {uniqueBrands.map((brand) => (
               <li key={brand}>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <label className="-mx-1 flex min-h-[2.75rem] cursor-pointer items-center gap-2.5 rounded-lg px-1 text-sm transition-colors hover:bg-surface-muted sm:min-h-0 sm:py-1">
                   <input
                     type="checkbox"
                     checked={draft.brand?.includes(brand)}
@@ -149,7 +172,7 @@ export default function ProductFilters({
 
         <FilterSection title="Color">
           <div className="flex flex-wrap gap-2">
-            {COLOR_SWATCHES.map((c) => {
+            {colorOptions.map((c) => {
               const active = draft.color?.includes(c.value);
               return (
                 <button
@@ -197,7 +220,7 @@ export default function ProductFilters({
           <ul className="space-y-2">
             {DISCOUNT_OPTIONS.map((opt) => (
               <li key={opt.value}>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <label className="-mx-1 flex min-h-[2.75rem] cursor-pointer items-center gap-2.5 rounded-lg px-1 text-sm transition-colors hover:bg-surface-muted sm:min-h-0 sm:py-1">
                   <input
                     type="radio"
                     name="discount"
@@ -216,7 +239,7 @@ export default function ProductFilters({
           <ul className="space-y-2">
             {STOCK_OPTIONS.map((opt) => (
               <li key={opt.value}>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <label className="-mx-1 flex min-h-[2.75rem] cursor-pointer items-center gap-2.5 rounded-lg px-1 text-sm transition-colors hover:bg-surface-muted sm:min-h-0 sm:py-1">
                   <input
                     type="radio"
                     name="stock"

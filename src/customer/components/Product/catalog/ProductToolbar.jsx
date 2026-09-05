@@ -190,7 +190,11 @@ export default function ProductToolbar({
             </button>
             {sortOpen && (
               <ul
-                className="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-line bg-white py-1 shadow-lg"
+                // w-56 (224px) right-aligned under a 160px button hung ~60px
+                // past the left edge of the screen. The control sits at the
+                // START of the toolbar row at every width, so anchor left
+                // rather than right and cap the width to the viewport.
+                className="absolute left-0 right-auto z-20 mt-1 max-h-[60vh] w-56 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-white py-1 shadow-lg"
                 role="listbox"
               >
                 {SORT_OPTIONS.map((opt) => (

@@ -15,6 +15,7 @@ import { classNames } from "../../../utils/classNames";
 import { useDispatch } from "react-redux";
 import {
   isAdminUser,
+  hasAdminRole,
   getUserRoles,
   getActiveRole,
   hasMultipleRoles,
@@ -81,13 +82,17 @@ function RoleSwitcher({ user, switching, onSwitch, className }) {
 }
 
 /** Role switching is identical wherever it is offered. */
-function useRoleSwitch() {
+function useRoleSwitch(onStart) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [switching, setSwitching] = React.useState(false);
 
   const switchTo = async (role) => {
     if (switching) return;
+    // Dismiss the drawer immediately. Switching often lands on the page you
+    // are already on, so no navigation occurs to close it for you and the
+    // panel just sits there over the result.
+    onStart?.();
     setSwitching(true);
     try {
       const updated = await dispatch(switchRole(role));
@@ -103,7 +108,7 @@ function useRoleSwitch() {
   return { switching, switchTo };
 }
 
-function buildMenuItems({ user, context, navigate }) {
+function buildMenuItems({ user, context, navigate, switchTo }) {
   const items = [
     {
       key: "profile",
@@ -122,14 +127,21 @@ function buildMenuItems({ user, context, navigate }) {
     },
   ];
 
-  if (isAdminUser(user)) {
+  // Entitlement, not the active role: a multi-role user acting as a customer
+  // still needs a way back to the admin area. Previously this used
+  // isAdminUser(), so switching to Customer hid the entry entirely and the
+  // role switcher became the only route back.
+  if (hasAdminRole(user)) {
     if (context === "admin") {
       items.push({
         key: "customer-dashboard",
         label: "Customer dashboard",
         description: "Browse the storefront as a shopper",
         icon: ShoppingBagIcon,
-        onClick: () => navigate("/"),
+        // The admin guard only admits an ACTIVE admin, so entering the other
+        // area has to flip the role too, otherwise the guard bounces you
+        // straight back out.
+        onClick: () => (isAdminUser(user) ? switchTo("CUSTOMER") : navigate("/")),
         accent: "teal",
       });
     } else {
@@ -138,7 +150,7 @@ function buildMenuItems({ user, context, navigate }) {
         label: "Admin dashboard",
         description: "Manage products, orders & customers",
         icon: Squares2X2Icon,
-        onClick: () => navigate("/admin"),
+        onClick: () => (isAdminUser(user) ? navigate("/admin") : switchTo("ADMIN")),
         accent: "teal",
       });
     }
@@ -160,7 +172,7 @@ export default function UserAccountMenu({
 
   if (!user?.firstName && !user?._id) return null;
 
-  const items = buildMenuItems({ user, context, navigate });
+  const items = buildMenuItems({ user, context, navigate, switchTo });
   const accountItems = items.filter((item) => !item.accent);
   const switchItem = items.find((item) => item.accent);
 
@@ -362,9 +374,10 @@ export function UserAccountMobileLinks({
   context = "storefront",
   onNavigate,
   onLogout,
+  onClose,
 }) {
   // Before the early return so hook order stays stable.
-  const { switching, switchTo } = useRoleSwitch();
+  const { switching, switchTo } = useRoleSwitch(onClose);
 
   if (!user?._id) return null;
 
@@ -378,6 +391,7 @@ export function UserAccountMobileLinks({
     user,
     context,
     navigate: (path) => onNavigate(path),
+    switchTo,
   });
   const accountItems = items.filter((item) => !item.accent);
   const switchItem = items.find((item) => item.accent);
@@ -431,7 +445,8 @@ export function UserAccountMobileLinks({
         <button
           type="button"
           className={switchLinkClass}
-          onClick={() => onNavigate(context === "admin" ? "/" : "/admin")}
+          disabled={switching}
+          onClick={switchItem.onClick}
         >
           <switchItem.icon className="h-5 w-5 text-brand-600" aria-hidden />
           {switchItem.label}
