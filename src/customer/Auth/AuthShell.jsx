@@ -20,19 +20,22 @@ export default function AuthShell({ mode = "login", children }) {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(249,115,22,0.2),transparent_50%)]" />
         <div className="pointer-events-none absolute -right-20 bottom-0 h-64 w-64 rounded-full bg-brand-500/10 blur-3xl" />
 
-        <div className="relative">
+        {/* Column, not two inline-flex links in a row: they used to share a
+            line on small screens and the logo overlapped "Back to store".
+            Brand first, the way back underneath it. */}
+        <div className="relative flex flex-col items-start gap-3">
+          <Link to="/" className="inline-flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-amber-400 text-lg font-black text-white shadow-lg shadow-orange-950/40">
+              E
+            </span>
+            <span className="text-xl font-semibold text-white">Ecommerce</span>
+          </Link>
           <Link
             to="/"
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition hover:text-white lg:hidden"
           >
             <ArrowLeftIcon className="h-4 w-4" />
             Back to store
-          </Link>
-          <Link to="/" className="mt-4 inline-flex items-center gap-2.5 lg:mt-0">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-amber-400 text-lg font-black text-white shadow-lg shadow-orange-950/40">
-              E
-            </span>
-            <span className="text-xl font-semibold text-white">Ecommerce</span>
           </Link>
         </div>
 

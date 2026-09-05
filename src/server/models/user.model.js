@@ -9,13 +9,29 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Not required: an account created through Google has no local password.
+  // Password login checks for its absence and says so rather than throwing.
   password: {
     type: String,
-    required: true,
   },
   email: {
     type: String,
     required: true,
+  },
+  // Google's stable subject id. `sparse` so the unique index only covers
+  // documents that actually have one.
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  avatar: {
+    type: String,
+  },
+  authProvider: {
+    type: String,
+    enum: ["local", "google"],
+    default: "local",
   },
   // role: {
   //   type: String,

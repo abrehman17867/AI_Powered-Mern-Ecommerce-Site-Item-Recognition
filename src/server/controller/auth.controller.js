@@ -50,6 +50,14 @@ const login = async (req, res) => {
         .send({ message: "User not found with email: " + email });
     }
 
+    // Google-created accounts have no local password; bcrypt.compare would
+    // throw on undefined, so say what actually happened.
+    if (!user.password) {
+      return res.status(400).send({
+        message: "This account was created with Google. Use “Continue with Google” to sign in.",
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {

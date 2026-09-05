@@ -202,8 +202,57 @@ const changeUserPassword = async (userId, currentPassword, newPassword) => {
   }
 };
 
+
+/**
+ * Resolve a Google sign-in to a local account.
+ *
+ * Three cases:
+ *  - Known googleId: return that account.
+ *  - Same email registered locally: attach the googleId so the shopper keeps
+ *    one account and their existing orders, rather than silently getting a
+ *    duplicate. Their password still works.
+ *  - Otherwise: create a passwordless CUSTOMER account.
+ */
+const findOrCreateGoogleUser = async ({ googleId, email, firstName, lastName, avatar }) => {
+  if (!googleId || !email) {
+    throw new Error("Google profile is missing an id or email");
+  }
+
+  const byGoogleId = await User.findOne({ googleId });
+  if (byGoogleId) {
+    // Keep the picture fresh; leave name and roles alone so local edits stick.
+    if (avatar && byGoogleId.avatar !== avatar) {
+      byGoogleId.avatar = avatar;
+      await byGoogleId.save();
+    }
+    return byGoogleId;
+  }
+
+  const byEmail = await User.findOne({ email });
+  if (byEmail) {
+    byEmail.googleId = googleId;
+    if (!byEmail.avatar && avatar) byEmail.avatar = avatar;
+    await byEmail.save();
+    return byEmail;
+  }
+
+  const user = new User({
+    firstName: firstName || "Shopper",
+    lastName: lastName || "",
+    email,
+    googleId,
+    avatar,
+    authProvider: "google",
+    role: "CUSTOMER",
+    roles: ["CUSTOMER"],
+  });
+  await user.save();
+  return user;
+};
+
 module.exports = {
   createUser,
+  findOrCreateGoogleUser,
   findUserById,
   getUserByEmail,
   getAllUsers,

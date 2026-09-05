@@ -9,6 +9,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import PasswordField from "./PasswordField";
 import AuthFormPanel from "./AuthFormPanel";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 export default function LoginForm({ compact = false, onClose }) {
   const dispatch = useDispatch();
@@ -18,9 +19,23 @@ export default function LoginForm({ compact = false, onClose }) {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [remember, setRemember] = useState(false);
 
+  const [oauthError, setOauthError] = useState(null);
+
   useEffect(() => {
     dispatch(clearAuthError());
   }, [dispatch]);
+
+  // The Google callback redirects here with ?auth_error=… when it cannot
+  // complete; show it and drop it from the URL so a refresh does not repeat it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const message = params.get("auth_error");
+    if (!message) return;
+    setOauthError(message);
+    params.delete("auth_error");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
 
   const handleChange = (event) => {
     setFormData((prev) => ({
@@ -72,9 +87,20 @@ export default function LoginForm({ compact = false, onClose }) {
       eyebrow={compact ? undefined : "Account"}
       title="Sign in"
       subtitle={compact ? undefined : "Enter your email and password to continue."}
-      error={auth.error}
+      error={auth.error || oauthError}
       footer={footer}
     >
+      {/* Google first: it is the fastest path and needs no typing. */}
+      <GoogleSignInButton />
+
+      <div className="my-5 flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
+          or
+        </span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <Input
           label="Email"

@@ -8,6 +8,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import PasswordField from "./PasswordField";
 import AuthFormPanel from "./AuthFormPanel";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 function RegisterFormInner({ compact = false, onClose }) {
   const navigate = useNavigate();
@@ -75,6 +76,16 @@ function RegisterFormInner({ compact = false, onClose }) {
       error={auth.error}
       footer={footer}
     >
+      {/* Google first: it is the fastest path and needs no typing. */}
+      <GoogleSignInButton />
+
+      <div className="my-5 flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
+          or
+        </span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
       <form className="space-y-4" onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
