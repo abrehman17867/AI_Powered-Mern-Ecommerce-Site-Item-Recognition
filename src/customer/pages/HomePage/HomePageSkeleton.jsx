@@ -41,11 +41,14 @@ export default function HomePageSkeleton() {
     <div aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading storefront…</span>
 
-      {/* Hero */}
+      {/* Hero — mirrors Hero.jsx exactly, including the top padding that clears
+          the fixed navbar (the home route renders no nav spacer, so the hero
+          has to make room for it itself) and the min-height, so the page does
+          not jump when the real hero replaces this. */}
       <section className="relative overflow-hidden bg-zinc-950">
-        <AppContainer>
-          <div className="grid items-center gap-10 py-14 md:py-20 lg:grid-cols-2">
-            <div>
+        <div className="relative mx-auto grid min-h-[min(92vh,880px)] max-w-app lg:grid-cols-2 lg:gap-8">
+          <div className="flex flex-col justify-center px-4 pb-12 pt-28 sm:px-6 sm:pt-32 lg:px-8 lg:pb-16 lg:pt-36">
+            <div className="max-w-xl">
               <Skeleton className="h-7 w-44 rounded-full bg-white/[0.07]" />
               <Skeleton className="mt-6 h-11 w-full max-w-md bg-white/[0.07]" />
               <Skeleton className="mt-3 h-11 w-3/4 max-w-sm bg-white/[0.07]" />
@@ -63,13 +66,33 @@ export default function HomePageSkeleton() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-[4/5] w-full rounded-2xl bg-white/[0.07]" />
+          </div>
+
+          <div className="flex flex-col justify-end gap-3 px-4 pb-10 pt-4 sm:px-6 sm:pb-12 lg:justify-center lg:px-8 lg:pb-16 lg:pt-36">
+            <Skeleton className="h-3 w-28 bg-white/[0.07] lg:ml-auto" />
+            {/* Four cards shaped like Hero.jsx's trending tiles: a p-3 box with
+                a square image and brand / title / price lines. Two plain
+                aspect-[4/5] blocks left the mobile hero 300px short and the
+                page lurched when the real one replaced it. */}
+            {/* w-full is load-bearing: lg:ml-auto is an auto cross-axis margin,
+                which cancels the flex stretch and makes this size to content.
+                The real cards hold <img> elements so they have intrinsic width;
+                placeholders do not, and the grid collapsed to 74px columns. */}
+            <div className="grid w-full grid-cols-2 gap-3 sm:gap-4 lg:ml-auto lg:max-w-md">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl border border-white/20 bg-white/10 p-3"
+                >
+                  <Skeleton className="aspect-square w-full rounded-xl bg-white/[0.07]" />
+                  <Skeleton className="mt-2 h-2.5 w-12 bg-white/[0.07]" />
+                  <Skeleton className="mt-1.5 h-3.5 w-full bg-white/[0.07]" />
+                  <Skeleton className="mt-1 h-3.5 w-10 bg-white/[0.07]" />
+                </div>
               ))}
             </div>
           </div>
-        </AppContainer>
+        </div>
       </section>
 
       {/* Trust bar */}
