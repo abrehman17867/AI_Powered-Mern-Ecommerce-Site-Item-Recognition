@@ -33,6 +33,24 @@ const userSchema = new mongoose.Schema({
     enum: ["local", "google"],
     default: "local",
   },
+  // Password reset. The *hash* of the token is stored, never the token
+  // itself: a leaked database then cannot be used to reset anyone's password,
+  // because the raw value only ever exists in the email that was sent.
+  // `select: false` keeps both out of every ordinary user query.
+  resetPasswordTokenHash: {
+    type: String,
+    select: false,
+  },
+  resetPasswordExpiresAt: {
+    type: Date,
+    select: false,
+  },
+  // Bumped on a successful reset so a second click on the same link fails
+  // even within the expiry window.
+  resetPasswordUsedAt: {
+    type: Date,
+    select: false,
+  },
   // role: {
   //   type: String,
   //   required: true,

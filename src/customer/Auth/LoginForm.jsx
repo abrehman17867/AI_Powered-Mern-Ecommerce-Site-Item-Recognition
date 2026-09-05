@@ -131,6 +131,10 @@ export default function LoginForm({ compact = false, onClose }) {
           </label>
           <button
             type="button"
+            onClick={() => {
+              onClose?.();
+              navigate("/forgot-password");
+            }}
             className="text-left text-sm font-medium text-brand-600 hover:text-brand-700 sm:text-right"
           >
             Forgot password?
