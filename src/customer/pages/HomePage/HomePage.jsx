@@ -10,7 +10,7 @@ import HomeNewArrivals from "../../components/Home/HomeNewArrivals.jsx";
 import HomePromoBanners from "../../components/Home/HomePromoBanners.jsx";
 import HomeNewsletter from "../../components/Home/HomeNewsletter.jsx";
 import { api } from "../../../config/apiConfig.jsx";
-import LoadingState from "../../../components/ui/LoadingState";
+import HomePageSkeleton from "./HomePageSkeleton";
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
@@ -73,7 +73,10 @@ export default function HomePage() {
   }, []);
 
   if (loading) {
-    return <LoadingState label="Loading storefront…" />;
+    // A skeleton of the real layout rather than a lone spinner: this is the
+    // first screen after a sign-in redirect, and an empty page under the
+    // navbar reads as a broken site.
+    return <HomePageSkeleton />;
   }
 
   return (

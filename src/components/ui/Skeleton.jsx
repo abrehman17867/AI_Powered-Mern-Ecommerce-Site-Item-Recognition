@@ -12,10 +12,20 @@ import { classNames } from "../../utils/classNames";
  * tone, radius and pulse timing stay identical across storefront and admin.
  */
 export function Skeleton({ className, rounded = "rounded-md" }) {
+  // Two background utilities have equal specificity, so a caller's `bg-*` does
+  // not reliably beat the default — the one Tailwind emits later wins, not the
+  // one written last in the class string. Drop the default when the caller
+  // supplies their own, which is how the dark hero placeholders stay subtle.
+  const hasOwnBackground = /(^|\s)bg-/.test(className || "");
   return (
     <span
       aria-hidden="true"
-      className={classNames("block animate-pulse bg-zinc-200/80", rounded, className)}
+      className={classNames(
+        "block animate-pulse",
+        !hasOwnBackground && "bg-zinc-200/80",
+        rounded,
+        className
+      )}
     />
   );
 }
