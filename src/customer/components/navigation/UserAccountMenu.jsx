@@ -36,6 +36,73 @@ function userDisplayName(user) {
 const menuItemClass =
   "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors";
 
+/**
+ * "Viewing as" control for accounts that hold more than one role.
+ *
+ * Shared by the desktop menu and the mobile drawer — it previously existed
+ * only in the desktop menu, so on a phone there was no way to switch between
+ * the customer and admin views at all.
+ */
+function RoleSwitcher({ user, switching, onSwitch, className }) {
+  if (!hasMultipleRoles(user)) return null;
+  return (
+    <div className={className}>
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+        Viewing as
+      </p>
+      <div className="flex gap-1.5" role="group" aria-label="Switch role">
+        {getUserRoles(user).map((r) => {
+          const isActive = getActiveRole(user) === r;
+          return (
+            <button
+              key={r}
+              type="button"
+              disabled={isActive || switching}
+              aria-pressed={isActive}
+              onClick={(e) => {
+                e.preventDefault();
+                onSwitch(r);
+              }}
+              className={classNames(
+                "flex-1 rounded-lg px-2.5 py-2 text-xs font-semibold transition-colors disabled:cursor-default",
+                isActive
+                  ? "bg-brand-600 text-white shadow-sm"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-orange-100 hover:text-orange-700",
+                switching && !isActive && "opacity-60"
+              )}
+            >
+              {ROLE_LABELS[r] || r}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Role switching is identical wherever it is offered. */
+function useRoleSwitch() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [switching, setSwitching] = React.useState(false);
+
+  const switchTo = async (role) => {
+    if (switching) return;
+    setSwitching(true);
+    try {
+      const updated = await dispatch(switchRole(role));
+      // The area you are in may no longer be reachable under the new role.
+      navigate(String(updated?.role).toUpperCase() === "ADMIN" ? "/admin" : "/");
+    } catch {
+      /* server rejected the switch; the caller keeps the current role */
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  return { switching, switchTo };
+}
+
 function buildMenuItems({ user, context, navigate }) {
   const items = [
     {
@@ -88,23 +155,8 @@ export default function UserAccountMenu({
   onLogout,
 }) {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const [switching, setSwitching] = React.useState(false);
-
-  // Declared before the early return below so hook order stays stable.
-  const handleSwitchRole = async (role) => {
-    if (switching) return;
-    setSwitching(true);
-    try {
-      const updated = await dispatch(switchRole(role));
-      // The area you are in may no longer be reachable under the new role.
-      navigate(String(updated?.role).toUpperCase() === "ADMIN" ? "/admin" : "/");
-    } catch {
-      /* server rejected the switch; the menu keeps the current role */
-    } finally {
-      setSwitching(false);
-    }
-  };
+  // Called before the early return below so hook order stays stable.
+  const { switching, switchTo } = useRoleSwitch();
 
   if (!user?.firstName && !user?._id) return null;
 
@@ -194,38 +246,12 @@ export default function UserAccountMenu({
                 </div>
               </div>
 
-              {hasMultipleRoles(user) ? (
-                <div className="border-b border-zinc-100 px-4 py-3">
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-                    Viewing as
-                  </p>
-                  <div className="flex gap-1.5" role="group" aria-label="Switch role">
-                    {getUserRoles(user).map((r) => {
-                      const isActive = getActiveRole(user) === r;
-                      return (
-                        <button
-                          key={r}
-                          type="button"
-                          disabled={isActive || switching}
-                          aria-pressed={isActive}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleSwitchRole(r);
-                          }}
-                          className={classNames(
-                            "flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-default",
-                            isActive
-                              ? "bg-brand-600 text-white shadow-sm"
-                              : "bg-zinc-100 text-zinc-600 hover:bg-orange-100 hover:text-orange-700"
-                          )}
-                        >
-                          {ROLE_LABELS[r] || r}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+              <RoleSwitcher
+                user={user}
+                switching={switching}
+                onSwitch={switchTo}
+                className="border-b border-zinc-100 px-4 py-3"
+              />
 
               <div className="p-2">
                 {accountItems.map((item) => (
@@ -337,6 +363,9 @@ export function UserAccountMobileLinks({
   onNavigate,
   onLogout,
 }) {
+  // Before the early return so hook order stays stable.
+  const { switching, switchTo } = useRoleSwitch();
+
   if (!user?._id) return null;
 
   const linkClass =
@@ -354,7 +383,7 @@ export function UserAccountMobileLinks({
   const switchItem = items.find((item) => item.accent);
 
   return (
-    <div className="space-y-1 border-t border-gray-200 px-4 py-6">
+    <div className="space-y-1 border-b border-gray-200 px-4 pb-5 pt-2">
       <div className="mb-4 flex items-center gap-3 rounded-xl bg-zinc-50 px-3 py-3">
         <span
           className={classNames(
@@ -378,6 +407,13 @@ export function UserAccountMobileLinks({
           ) : null}
         </div>
       </div>
+
+      <RoleSwitcher
+        user={user}
+        switching={switching}
+        onSwitch={switchTo}
+        className="mb-4 rounded-xl bg-white px-3 py-3 ring-1 ring-zinc-100"
+      />
 
       {accountItems.map((item) => (
         <button

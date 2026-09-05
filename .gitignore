@@ -15,3 +15,4 @@ yarn-error.log*
 .vercel
 scripts/.relabel-cache.json
 scripts/.repair-image-cache.json
+.backups/

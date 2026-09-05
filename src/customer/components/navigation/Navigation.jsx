@@ -433,6 +433,47 @@ export default function Navigation() {
                   </button>
                 </div>
 
+                {auth.user?._id ? (
+                  <UserAccountMobileLinks
+                    user={auth.user}
+                    onNavigate={(path) => {
+                      setOpen(false);
+                      navigate(path);
+                    }}
+                    onLogout={() => {
+                      setOpen(false);
+                      handleLogout();
+                    }}
+                  />
+                ) : (
+                  <div className="space-y-6 border-b border-gray-200 px-4 pb-6 pt-2">
+                    <div className="flow-root">
+                      <button
+                        type="button"
+                        className="-m-2 block w-full rounded-lg p-2 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-orange-50 hover:text-orange-700"
+                        onClick={() => {
+                          setOpen(false);
+                          handleOpen();
+                        }}
+                      >
+                        Sign in
+                      </button>
+                    </div>
+                    <div className="flow-root">
+                      <button
+                        type="button"
+                        className="-m-2 block w-full rounded-lg p-2 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-orange-50 hover:text-orange-700"
+                        onClick={() => {
+                          setOpen(false);
+                          navigate("/register");
+                        }}
+                      >
+                        Create account
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Category tree: L1 tabs → L2 headings → L3 links (API) */}
                 {navData.categories.length > 0 ? (
                 <Tab.Group
@@ -613,46 +654,6 @@ export default function Navigation() {
                   </button>
                 </div>
 
-                {auth.user?._id ? (
-                  <UserAccountMobileLinks
-                    user={auth.user}
-                    onNavigate={(path) => {
-                      setOpen(false);
-                      navigate(path);
-                    }}
-                    onLogout={() => {
-                      setOpen(false);
-                      handleLogout();
-                    }}
-                  />
-                ) : (
-                  <div className="space-y-6 border-t border-gray-200 px-4 py-6">
-                    <div className="flow-root">
-                      <button
-                        type="button"
-                        className="-m-2 block w-full rounded-lg p-2 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-orange-50 hover:text-orange-700"
-                        onClick={() => {
-                          setOpen(false);
-                          handleOpen();
-                        }}
-                      >
-                        Sign in
-                      </button>
-                    </div>
-                    <div className="flow-root">
-                      <button
-                        type="button"
-                        className="-m-2 block w-full rounded-lg p-2 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-orange-50 hover:text-orange-700"
-                        onClick={() => {
-                          setOpen(false);
-                          navigate("/register");
-                        }}
-                      >
-                        Create account
-                      </button>
-                    </div>
-                  </div>
-                )}
               </Dialog.Panel>
             </Transition.Child>
           </div>

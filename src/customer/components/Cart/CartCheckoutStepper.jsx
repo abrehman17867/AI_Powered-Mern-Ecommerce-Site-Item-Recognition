@@ -20,7 +20,11 @@ export default function CartCheckoutStepper({ active = "cart" }) {
           const isCurrent = index === activeIndex;
           return (
             <li key={step.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              {/* The label stacks under the dot on phones and sits beside it from
+                  sm up. It used to be `hidden sm:block`, which left mobile with
+                  three bare numbered circles and no way to tell what the steps
+                  were. Only the longer description is dropped on small screens. */}
+              <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center sm:flex-row sm:items-center sm:gap-3 sm:text-left">
                 <span
                   className={classNames(
                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold sm:h-9 sm:w-9 sm:text-sm",
@@ -31,22 +35,26 @@ export default function CartCheckoutStepper({ active = "cart" }) {
                 >
                   {isComplete ? "✓" : index + 1}
                 </span>
-                <div className="min-w-0 hidden sm:block">
+                <div className="min-w-0">
                   <p
                     className={classNames(
-                      "text-sm font-semibold",
+                      "text-[11px] font-semibold leading-tight sm:text-sm",
                       isCurrent ? "text-foreground" : "text-foreground-muted"
                     )}
                   >
                     {step.label}
                   </p>
-                  <p className="text-xs text-foreground-subtle">{step.description}</p>
+                  <p className="hidden text-xs text-foreground-subtle sm:block">
+                    {step.description}
+                  </p>
                 </div>
               </div>
               {index < STEPS.length - 1 ? (
                 <div
                   className={classNames(
-                    "h-0.5 flex-1 rounded-full",
+                    // Pulled up to the dot's centre line, since the label now
+                    // sits below the dot on mobile.
+                    "mt-4 h-0.5 flex-1 self-start rounded-full sm:mt-0 sm:self-auto",
                     isComplete ? "bg-brand-500" : "bg-line"
                   )}
                   aria-hidden
